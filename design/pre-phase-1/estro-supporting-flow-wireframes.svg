@@ -1,0 +1,337 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="900" viewBox="0 0 1440 900" role="img" aria-labelledby="title description">
+  <title id="title">Estro supporting product flows</title>
+  <desc id="description">A dark structural wireframe board showing Estro's Landing, Project Hub, Create and Import, Export and Job Center, and Review workspaces, connected through a persistent editor project context.</desc>
+
+  <defs>
+    <linearGradient id="agent-edge" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#56a8ff"/>
+      <stop offset="0.58" stop-color="#747df4"/>
+      <stop offset="1" stop-color="#a17df2"/>
+    </linearGradient>
+    <linearGradient id="media-sunset" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#7389a5"/>
+      <stop offset="0.48" stop-color="#c78673"/>
+      <stop offset="1" stop-color="#263847"/>
+    </linearGradient>
+    <linearGradient id="media-coast" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#627990"/>
+      <stop offset="0.52" stop-color="#d19a7f"/>
+      <stop offset="1" stop-color="#253440"/>
+    </linearGradient>
+    <linearGradient id="media-forest" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#78876d"/>
+      <stop offset="1" stop-color="#26322f"/>
+    </linearGradient>
+    <clipPath id="landing-preview"><rect x="242" y="239" width="208" height="170" rx="5"/></clipPath>
+    <clipPath id="export-preview"><rect x="244" y="584" width="296" height="166" rx="4"/></clipPath>
+    <clipPath id="review-preview"><rect x="766" y="572" width="378" height="213" rx="4"/></clipPath>
+
+    <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h14M14 7l5 5-5 5"/></symbol>
+    <symbol id="i-chevron" viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></symbol>
+    <symbol id="i-back" viewBox="0 0 24 24"><path d="m15 6-6 6 6 6"/></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+    <symbol id="i-folder" viewBox="0 0 24 24"><path d="M3 7h7l2 2h9v10H3z"/></symbol>
+    <symbol id="i-image" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m4 17 5-5 3 3 3-3 5 5"/></symbol>
+    <symbol id="i-film" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M7 5v14M17 5v14M3 9h4M3 15h4M17 9h4M17 15h4"/></symbol>
+    <symbol id="i-upload" viewBox="0 0 24 24"><path d="M12 16V4M7 9l5-5 5 5M4 20h16"/></symbol>
+    <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v6l4 2"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12 4 4L19 6"/></symbol>
+    <symbol id="i-alert" viewBox="0 0 24 24"><path d="M12 3 2.5 20h19zM12 9v5M12 17h.01"/></symbol>
+    <symbol id="i-spark" viewBox="0 0 24 24"><path d="m12 3 1.4 5.6L19 10l-5.6 1.4L12 17l-1.4-5.6L5 10l5.6-1.4z"/></symbol>
+    <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 4v12M7 11l5 5 5-5M4 20h16"/></symbol>
+    <symbol id="i-play" viewBox="0 0 24 24"><path d="m8 5 11 7-11 7z"/></symbol>
+    <symbol id="i-comment" viewBox="0 0 24 24"><path d="M5 5h14v11H9l-4 4z"/></symbol>
+    <symbol id="i-link" viewBox="0 0 24 24"><path d="M10 14a4 4 0 0 0 6 0l3-3a4 4 0 0 0-6-6l-2 2M14 10a4 4 0 0 0-6 0l-3 3a4 4 0 0 0 6 6l2-2"/></symbol>
+    <symbol id="i-more" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1" fill="currentColor" stroke="none"/><circle cx="19" cy="12" r="1" fill="currentColor" stroke="none"/></symbol>
+  </defs>
+
+  <style>
+    text { font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    .heading { fill: #f1f3f7; font-size: 14px; font-weight: 620; }
+    .label { fill: #e4e7ec; font-size: 11px; font-weight: 560; }
+    .body { fill: #adb3be; font-size: 10px; font-weight: 400; }
+    .meta { fill: #747c89; font-size: 9px; font-weight: 500; }
+    .micro { fill: #69717e; font-size: 8px; font-weight: 650; letter-spacing: 0.7px; }
+    .value { fill: #aab2bf; font-family: ui-monospace, "SFMono-Regular", Menlo, monospace; font-size: 9px; font-variant-numeric: tabular-nums; }
+    .icon { fill: none; stroke: currentColor; stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; }
+    .divider { stroke: #292d35; stroke-width: 1; shape-rendering: crispEdges; }
+    .soft-divider { stroke: #242831; stroke-width: 1; shape-rendering: crispEdges; }
+  </style>
+
+  <rect width="1440" height="900" fill="#0d0f13"/>
+
+  <!-- Board header -->
+  <text x="40" y="34" fill="#f5f6f9" font-size="17" font-weight="650">Estro</text>
+  <text x="40" y="66" fill="#eef1f5" font-size="24" font-weight="620" letter-spacing="-0.35">Supporting product flows</text>
+  <text x="40" y="87" class="body" font-size="11">Five structural destinations connected by one project revision, one job system, and a reliable return to the editor.</text>
+  <text x="1400" y="36" class="micro" text-anchor="end">PRE-PHASE 1 · ROUTE CONTRACT</text>
+
+  <!-- Route spine -->
+  <rect x="40" y="103" width="1360" height="38" rx="7" fill="#111318" stroke="#272b33"/>
+  <g>
+    <circle cx="79" cy="122" r="8" fill="#234465" stroke="#4f8cc9"/><text x="96" y="125" class="label">Landing</text>
+    <g color="#59616d" class="icon"><use href="#i-arrow" x="184" y="114" width="16" height="16"/></g>
+    <circle cx="229" cy="122" r="8" fill="#234465" stroke="#4f8cc9"/><text x="246" y="125" class="label">Projects</text>
+    <g color="#59616d" class="icon"><use href="#i-arrow" x="340" y="114" width="16" height="16"/></g>
+    <circle cx="385" cy="122" r="8" fill="#234465" stroke="#4f8cc9"/><text x="402" y="125" class="label">Create / Import</text>
+    <g color="#59616d" class="icon"><use href="#i-arrow" x="535" y="114" width="16" height="16"/></g>
+    <circle cx="580" cy="122" r="8" fill="#2d526f" stroke="#63a7e2"/><text x="597" y="125" fill="#d9e9f8" font-size="11" font-weight="600">Persistent editor</text>
+    <g color="#59616d" class="icon"><use href="#i-arrow" x="720" y="114" width="16" height="16"/></g>
+    <circle cx="765" cy="122" r="8" fill="#234465" stroke="#4f8cc9"/><text x="782" y="125" class="label">Export</text>
+    <g color="#59616d" class="icon"><use href="#i-arrow" x="870" y="114" width="16" height="16"/></g>
+    <circle cx="915" cy="122" r="8" fill="#234465" stroke="#4f8cc9"/><text x="932" y="125" class="label">Review</text>
+    <text x="1378" y="119" class="meta" text-anchor="end">Revision, history, jobs, and agent activity persist</text>
+    <text x="1378" y="132" class="meta" text-anchor="end">Export and Review always return to the same project context</text>
+  </g>
+
+  <!-- Screen labels -->
+  <text x="40" y="166" class="micro">01 · LANDING</text>
+  <text x="504" y="166" class="micro">02 · PROJECT HUB</text>
+  <text x="968" y="166" class="micro">03 · CREATE / IMPORT</text>
+
+  <!-- 01 Landing viewport -->
+  <rect x="40" y="178" width="432" height="270" rx="8" fill="#111318" stroke="#30343d"/>
+  <rect x="40" y="178" width="432" height="34" rx="8" fill="#15171c"/>
+  <rect x="40" y="204" width="432" height="8" fill="#15171c"/>
+  <line x1="40" y1="211.5" x2="472" y2="211.5" class="divider"/>
+  <text x="55" y="199" fill="#f3f5f8" font-size="12" font-weight="650">Estro</text>
+  <text x="456" y="199" class="meta" text-anchor="end">Open project</text>
+
+  <text x="62" y="256" fill="#f2f4f7" font-size="22" font-weight="610" letter-spacing="-0.35">Make the edit.</text>
+  <text x="62" y="280" fill="#f2f4f7" font-size="22" font-weight="610" letter-spacing="-0.35">Or describe it.</text>
+  <text x="62" y="307" class="body">Photo and video editing,</text>
+  <text x="62" y="322" class="body">with direct controls and agent help</text>
+  <text x="62" y="337" class="body">sharing the same history.</text>
+  <rect x="62" y="346" width="92" height="30" rx="6" fill="#559fea"/>
+  <text x="108" y="365" fill="#08111c" font-size="10" font-weight="650" text-anchor="middle">Create project</text>
+  <rect x="162" y="346" width="74" height="30" rx="6" fill="#20232a" stroke="#333842"/>
+  <text x="199" y="365" class="label" text-anchor="middle">Open file</text>
+  <g color="#71aff1" class="icon"><use href="#i-spark" x="62" y="394" width="13" height="13"/></g>
+  <text x="82" y="404" class="meta">WebMCP-ready from the first command</text>
+
+  <rect x="242" y="239" width="208" height="170" rx="5" fill="#0e1014" stroke="#343943"/>
+  <g clip-path="url(#landing-preview)">
+    <rect x="242" y="239" width="208" height="22" fill="#17191f"/>
+    <rect x="242" y="261" width="40" height="148" fill="#15171c"/>
+    <rect x="282" y="261" width="168" height="104" fill="#101217"/>
+    <rect x="302" y="274" width="126" height="74" rx="3" fill="url(#media-coast)"/>
+    <path d="M302 327c25-12 46-11 66-2 22 10 39 7 60-7v30H302z" fill="#22323c" opacity=".9"/>
+    <rect x="242" y="365" width="208" height="44" fill="#14161b"/>
+    <line x1="282" y1="365" x2="282" y2="409" class="divider"/>
+    <rect x="291" y="377" width="66" height="12" rx="2" fill="#326287"/>
+    <rect x="359" y="377" width="54" height="12" rx="2" fill="#70588e"/>
+    <rect x="291" y="393" width="122" height="7" rx="2" fill="#385168"/>
+    <line x1="342" y1="368" x2="342" y2="406" stroke="#d7e6f4" stroke-width="1"/>
+  </g>
+  <rect x="283" y="227" width="128" height="25" rx="13" fill="#1a1d24" stroke="#343b46"/>
+  <path d="M295 228h104" stroke="url(#agent-edge)" stroke-width="1.2" stroke-linecap="round"/>
+  <g color="#79b7f6" class="icon"><use href="#i-spark" x="292" y="234" width="12" height="12"/></g>
+  <text x="310" y="243" class="meta">Balancing dialogue</text>
+  <text x="256" y="430" class="meta">Product shown immediately; no feature wall.</text>
+
+  <!-- 02 Project Hub viewport -->
+  <rect x="504" y="178" width="432" height="270" rx="8" fill="#111318" stroke="#30343d"/>
+  <rect x="504" y="178" width="432" height="34" rx="8" fill="#15171c"/>
+  <rect x="504" y="204" width="432" height="8" fill="#15171c"/>
+  <line x1="504" y1="211.5" x2="936" y2="211.5" class="divider"/>
+  <text x="519" y="199" fill="#f3f5f8" font-size="12" font-weight="650">Estro</text>
+  <rect x="758" y="185" width="111" height="20" rx="5" fill="#1d2026" stroke="#30353e"/>
+  <g color="#777f8c" class="icon"><use href="#i-search" x="766" y="189" width="12" height="12"/></g>
+  <text x="783" y="198" class="meta">Search projects</text>
+  <rect x="876" y="185" width="46" height="20" rx="5" fill="#559fea"/>
+  <g color="#07111b" class="icon"><use href="#i-plus" x="883" y="189" width="12" height="12"/></g>
+  <text x="902" y="198" fill="#07111b" font-size="8" font-weight="650">New</text>
+
+  <text x="524" y="241" fill="#eef1f5" font-size="18" font-weight="610">Projects</text>
+  <text x="524" y="258" class="meta">Continue where you left off.</text>
+  <text x="916" y="242" class="meta" text-anchor="end">Recent</text>
+
+  <line x1="524" y1="276" x2="916" y2="276" class="soft-divider"/>
+  <rect x="524" y="289" width="82" height="48" rx="4" fill="url(#media-sunset)"/>
+  <text x="620" y="303" class="label">Anniversary film</text>
+  <text x="620" y="319" class="meta">Video · Edited 3 min ago</text>
+  <circle cx="829" cy="312" r="3" fill="#67c49b"/><text x="840" y="315" class="meta">Saved</text>
+  <g color="#69717e" class="icon"><use href="#i-more" x="898" y="301" width="15" height="15"/></g>
+
+  <line x1="524" y1="349" x2="916" y2="349" class="soft-divider"/>
+  <rect x="524" y="362" width="82" height="48" rx="4" fill="url(#media-forest)"/>
+  <text x="620" y="376" class="label">Portrait study</text>
+  <text x="620" y="392" class="meta">Photo · Edited yesterday</text>
+  <circle cx="829" cy="385" r="3" fill="#74adf2"/><text x="840" y="388" class="meta">Local</text>
+  <g color="#69717e" class="icon"><use href="#i-more" x="898" y="374" width="15" height="15"/></g>
+
+  <rect x="524" y="420" width="392" height="20" rx="4" fill="#171a20" stroke="#2d333b"/>
+  <g color="#e1ad57" class="icon"><use href="#i-clock" x="532" y="424" width="12" height="12"/></g>
+  <text x="550" y="433" class="meta">Recoverable draft · Coastal reel · 9 minutes ago</text>
+  <text x="900" y="433" fill="#d8b46d" font-size="9" text-anchor="end">Review recovery</text>
+
+  <!-- 03 Create / Import viewport -->
+  <rect x="968" y="178" width="432" height="270" rx="8" fill="#111318" stroke="#30343d"/>
+  <rect x="968" y="178" width="432" height="34" rx="8" fill="#15171c"/>
+  <rect x="968" y="204" width="432" height="8" fill="#15171c"/>
+  <line x1="968" y1="211.5" x2="1400" y2="211.5" class="divider"/>
+  <g color="#78818e" class="icon"><use href="#i-back" x="980" y="187" width="16" height="16"/></g>
+  <text x="1002" y="199" class="label">New project</text>
+  <text x="1385" y="199" class="meta" text-anchor="end">Step 1 of 2</text>
+
+  <text x="990" y="241" fill="#eef1f5" font-size="18" font-weight="610">What are you making?</text>
+  <rect x="990" y="258" width="142" height="32" rx="6" fill="#222832" stroke="#496f96"/>
+  <g color="#75b4f5" class="icon"><use href="#i-image" x="1002" y="266" width="16" height="16"/></g>
+  <text x="1026" y="277" class="label">Photo</text>
+  <text x="1118" y="278" fill="#7eb9f5" font-size="10" text-anchor="end">Selected</text>
+  <rect x="1142" y="258" width="142" height="32" rx="6" fill="#191c22" stroke="#2d333c"/>
+  <g color="#7b838f" class="icon"><use href="#i-film" x="1154" y="266" width="16" height="16"/></g>
+  <text x="1178" y="277" class="label">Video</text>
+
+  <rect x="990" y="307" width="198" height="108" rx="6" fill="#15181e" stroke="#343a44" stroke-dasharray="4 4"/>
+  <g color="#78aee4" class="icon"><use href="#i-upload" x="1076" y="327" width="24" height="24"/></g>
+  <text x="1089" y="367" class="label" text-anchor="middle">Drop media here</text>
+  <text x="1089" y="384" class="meta" text-anchor="middle">or choose files / a folder</text>
+  <rect x="1039" y="394" width="100" height="14" rx="3" fill="#202630"/>
+  <rect x="1039" y="394" width="46" height="14" rx="3" fill="#2b587c"/>
+  <text x="1089" y="404" fill="#b9cde1" font-size="8" text-anchor="middle">Reading 7 of 15 assets</text>
+
+  <text x="1210" y="319" class="micro">DOCUMENT</text>
+  <text x="1210" y="344" class="meta">Name</text><text x="1282" y="344" class="label">Portrait study</text>
+  <line x1="1210" y1="353" x2="1378" y2="353" class="soft-divider"/>
+  <text x="1210" y="375" class="meta">Size</text><text x="1282" y="375" class="value">3840 × 2160 px</text>
+  <line x1="1210" y1="384" x2="1378" y2="384" class="soft-divider"/>
+  <text x="1210" y="406" class="meta">Advanced settings</text>
+  <g color="#707986" class="icon"><use href="#i-chevron" x="1362" y="396" width="14" height="14"/></g>
+  <rect x="1298" y="418" width="80" height="24" rx="5" fill="#559fea"/>
+  <text x="1338" y="433" fill="#08111c" font-size="9" font-weight="650" text-anchor="middle">Continue</text>
+
+  <!-- Bottom labels -->
+  <text x="40" y="478" class="micro">04 · EXPORT + JOB CENTER</text>
+  <text x="736" y="478" class="micro">05 · REVIEW</text>
+
+  <!-- 04 Export viewport -->
+  <rect x="40" y="490" width="664" height="327" rx="8" fill="#111318" stroke="#30343d"/>
+  <rect x="40" y="490" width="664" height="38" rx="8" fill="#15171c"/>
+  <rect x="40" y="520" width="664" height="8" fill="#15171c"/>
+  <line x1="40" y1="527.5" x2="704" y2="527.5" class="divider"/>
+  <g color="#7f8794" class="icon"><use href="#i-back" x="54" y="501" width="16" height="16"/></g>
+  <text x="77" y="513" class="label">Anniversary film</text>
+  <text x="169" y="513" class="meta">Revision 18</text>
+  <rect x="449" y="499" width="140" height="22" rx="11" fill="#1c1f26" stroke="#333945"/>
+  <path d="M460 500h116" stroke="url(#agent-edge)" stroke-width="1.2" stroke-linecap="round"/>
+  <g color="#7eb9f6" class="icon"><use href="#i-spark" x="458" y="504" width="13" height="13"/></g>
+  <text x="477" y="513" class="meta">Rendering social cut</text>
+  <text x="686" y="513" fill="#99b9d8" font-size="9" text-anchor="end">Return to editor</text>
+
+  <rect x="40" y="528" width="178" height="289" fill="#15171c"/>
+  <line x1="217.5" y1="528" x2="217.5" y2="817" class="divider"/>
+  <text x="58" y="554" class="heading">Export</text>
+  <text x="58" y="580" class="micro">DESTINATION</text>
+  <rect x="58" y="592" width="142" height="32" rx="5" fill="#222832" stroke="#456d96"/>
+  <text x="72" y="607" class="label">Social · vertical</text><text x="72" y="618" class="meta">1080 × 1920 · H.264</text>
+  <rect x="58" y="632" width="142" height="32" rx="5" fill="#191c22" stroke="#2b3038"/>
+  <text x="72" y="647" class="label">Web · standard</text><text x="72" y="658" class="meta">1920 × 1080 · H.264</text>
+  <rect x="58" y="672" width="142" height="32" rx="5" fill="#191c22" stroke="#2b3038"/>
+  <text x="72" y="687" class="label">Archive · master</text><text x="72" y="698" class="meta">Source size · high quality</text>
+  <line x1="58" y1="722" x2="200" y2="722" class="soft-divider"/>
+  <text x="58" y="744" class="meta">Range</text><text x="200" y="744" class="value" text-anchor="end">Selected range</text>
+  <text x="58" y="766" class="meta">Estimate</text><text x="200" y="766" class="value" text-anchor="end">184–212 MB</text>
+  <rect x="58" y="782" width="142" height="26" rx="5" fill="#559fea"/>
+  <text x="129" y="799" fill="#08111c" font-size="9" font-weight="650" text-anchor="middle">Start export</text>
+
+  <rect x="218" y="528" width="346" height="289" fill="#101217"/>
+  <text x="238" y="554" class="micro">OUTPUT PREVIEW</text>
+  <rect x="244" y="584" width="296" height="166" rx="4" fill="url(#media-coast)" stroke="#343943"/>
+  <g clip-path="url(#export-preview)">
+    <path d="M244 699c38-18 82-13 116 1 39 16 76 12 180-22v72H244z" fill="#21333d" opacity=".92"/>
+    <rect x="370" y="584" width="44" height="166" fill="#0b0e12" opacity=".14"/>
+  </g>
+  <rect x="258" y="598" width="80" height="18" rx="4" fill="#12161c" opacity=".82"/>
+  <text x="298" y="610" fill="#dbe5ee" font-size="8" font-weight="600" text-anchor="middle">Preview frame</text>
+  <text x="244" y="772" class="meta">00:00:08:12 / 00:00:23:18</text>
+  <text x="540" y="772" class="meta" text-anchor="end">Source remains unchanged</text>
+
+  <rect x="564" y="528" width="140" height="289" fill="#15171c"/>
+  <line x1="563.5" y1="528" x2="563.5" y2="817" class="divider"/>
+  <text x="580" y="554" class="heading">Job Center</text>
+  <text x="686" y="568" class="meta" text-anchor="end">2 items</text>
+  <rect x="580" y="570" width="108" height="92" rx="6" fill="#191d24" stroke="#334150"/>
+  <g color="#79b6f5" class="icon"><use href="#i-film" x="590" y="581" width="15" height="15"/></g>
+  <text x="612" y="591" class="label">Social cut</text>
+  <text x="590" y="612" class="meta">744 / 1,820 frames</text>
+  <rect x="590" y="621" width="88" height="3" rx="2" fill="#2b3038"/><rect x="590" y="621" width="36" height="3" rx="2" fill="#68adf2"/>
+  <text x="590" y="643" class="meta">H.264</text>
+  <text x="678" y="643" fill="#acbac9" font-size="8" text-anchor="end">Cancel</text>
+  <rect x="580" y="674" width="108" height="74" rx="6" fill="#181b20" stroke="#303840"/>
+  <g color="#65c198" class="icon"><use href="#i-check" x="590" y="686" width="15" height="15"/></g>
+  <text x="612" y="696" class="label">Photo export</text>
+  <text x="590" y="717" class="meta">Completed · 8.4 MB</text>
+  <g color="#98a9ba" class="icon"><use href="#i-download" x="590" y="728" width="13" height="13"/></g>
+  <text x="610" y="738" fill="#b8c7d6" font-size="8">Download</text>
+  <rect x="580" y="764" width="108" height="37" rx="5" fill="#17191e" stroke="#2b3038"/>
+  <g color="#d6a755" class="icon"><use href="#i-alert" x="590" y="774" width="13" height="13"/></g>
+  <text x="610" y="782" class="meta">Proxy paused</text>
+  <text x="610" y="794" fill="#c4aa73" font-size="8">Retry available</text>
+
+  <!-- 05 Review viewport -->
+  <rect x="736" y="490" width="664" height="327" rx="8" fill="#111318" stroke="#30343d"/>
+  <rect x="736" y="490" width="664" height="38" rx="8" fill="#15171c"/>
+  <rect x="736" y="520" width="664" height="8" fill="#15171c"/>
+  <line x1="736" y1="527.5" x2="1400" y2="527.5" class="divider"/>
+  <g color="#7f8794" class="icon"><use href="#i-back" x="750" y="501" width="16" height="16"/></g>
+  <text x="773" y="513" class="label">Anniversary film</text>
+  <text x="865" y="513" class="meta">Review · Revision 18</text>
+  <text x="1146" y="513" fill="#99b9d8" font-size="9" text-anchor="end">Open in editor</text>
+  <rect x="1162" y="499" width="94" height="22" rx="5" fill="#20242b" stroke="#353b45"/>
+  <g color="#9aacbe" class="icon"><use href="#i-link" x="1172" y="504" width="12" height="12"/></g>
+  <text x="1208" y="513" class="meta" text-anchor="middle">Copy link</text>
+  <rect x="1264" y="499" width="120" height="22" rx="5" fill="#559fea"/>
+  <text x="1324" y="513" fill="#08111c" font-size="9" font-weight="650" text-anchor="middle">Share review</text>
+
+  <rect x="736" y="528" width="428" height="289" fill="#101217"/>
+  <rect x="1164" y="528" width="236" height="289" fill="#15171c"/>
+  <line x1="1163.5" y1="528" x2="1163.5" y2="817" class="divider"/>
+
+  <text x="758" y="553" class="micro">VERSION 18 · REVIEW COPY</text>
+  <text x="1144" y="553" class="meta" text-anchor="end">Compare with v17</text>
+  <rect x="766" y="572" width="378" height="213" rx="4" fill="url(#media-coast)" stroke="#343943"/>
+  <g clip-path="url(#review-preview)">
+    <path d="M766 716c64-25 112-13 159 4 56 20 111 12 219-34v99H766z" fill="#22343f" opacity=".92"/>
+    <circle cx="927" cy="641" r="23" fill="#11151b" opacity=".72"/>
+    <g color="#e8edf2" class="icon"><use href="#i-play" x="917" y="631" width="20" height="20"/></g>
+    <circle cx="1030" cy="661" r="17" fill="#4d8fcb" opacity=".94"/>
+    <text x="1030" y="665" fill="#07111b" font-size="9" font-weight="700" text-anchor="middle">2</text>
+    <path d="M1017 674 994 693" stroke="#72aee7" stroke-width="1.5"/>
+  </g>
+  <rect x="766" y="792" width="378" height="4" rx="2" fill="#2a2e36"/><rect x="766" y="792" width="201" height="4" rx="2" fill="#69acf0"/>
+  <circle cx="967" cy="794" r="4" fill="#dce8f3"/>
+  <text x="766" y="808" class="value">00:00:12:08</text>
+  <text x="1144" y="808" class="value" text-anchor="end">00:00:23:18</text>
+
+  <text x="1182" y="553" class="heading">Comments</text>
+  <text x="1382" y="553" class="meta" text-anchor="end">3 open</text>
+  <rect x="1182" y="570" width="200" height="76" rx="6" fill="#1a1e25" stroke="#364252"/>
+  <circle cx="1198" cy="587" r="8" fill="#315170"/><text x="1198" y="590" fill="#dce9f5" font-size="7" font-weight="700" text-anchor="middle">MP</text>
+  <text x="1212" y="584" class="label">Mira Patil</text>
+  <text x="1368" y="584" class="value" text-anchor="end">00:12:08</text>
+  <text x="1194" y="608" class="body">Hold this shot a little longer.</text>
+  <text x="1194" y="625" class="meta">Pinned to the highlighted region</text>
+  <text x="1368" y="637" fill="#8fbce8" font-size="8" text-anchor="end">Open in editor</text>
+
+  <rect x="1182" y="657" width="200" height="58" rx="6" fill="#191c22" stroke="#2f353e"/>
+  <circle cx="1198" cy="674" r="8" fill="#58446c"/><text x="1198" y="677" fill="#eee7f3" font-size="7" font-weight="700" text-anchor="middle">AR</text>
+  <text x="1212" y="672" class="label">Ari Rao</text>
+  <text x="1368" y="672" class="value" text-anchor="end">00:18:02</text>
+  <text x="1194" y="697" class="body">The music transition works.</text>
+
+  <rect x="1182" y="727" width="200" height="48" rx="6" fill="#171a20" stroke="#2d333b"/>
+  <g color="#7d8996" class="icon"><use href="#i-comment" x="1194" y="740" width="14" height="14"/></g>
+  <text x="1216" y="747" class="meta">Add a timecoded comment…</text>
+  <text x="1194" y="795" class="meta">Reviewer access</text>
+  <text x="1382" y="795" class="label" text-anchor="end">Can comment</text>
+
+  <!-- Footer contract -->
+  <line x1="40" y1="844.5" x2="1400" y2="844.5" class="divider"/>
+  <g color="#64bd96" class="icon"><use href="#i-check" x="40" y="862" width="14" height="14"/></g>
+  <text x="61" y="873" class="meta">Local import feedback stays attached to the source; durable work moves to Job Center.</text>
+  <g color="#73b2f2" class="icon"><use href="#i-check" x="518" y="862" width="14" height="14"/></g>
+  <text x="539" y="873" class="meta">Export and Review name the source revision and preserve a direct return to the editor.</text>
+  <text x="1400" y="873" class="meta" text-anchor="end">Structural wireframes · copy and decoration remain provisional</text>
+</svg>

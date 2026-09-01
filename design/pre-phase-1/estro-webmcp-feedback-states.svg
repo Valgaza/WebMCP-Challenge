@@ -1,0 +1,202 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="900" viewBox="0 0 1440 900" role="img" aria-labelledby="title description">
+  <title id="title">Estro WebMCP feedback system</title>
+  <desc id="description">Eight dark-interface state examples showing how Estro communicates agent inspection, proposals, confirmation, running jobs, completion, failure, cancellation, and undo.</desc>
+
+  <defs>
+    <linearGradient id="agent-edge" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#56a8ff"/>
+      <stop offset="0.58" stop-color="#747df4"/>
+      <stop offset="1" stop-color="#a17df2"/>
+    </linearGradient>
+    <linearGradient id="preview-before" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#6a7d91"/><stop offset="1" stop-color="#263845"/></linearGradient>
+    <linearGradient id="preview-after" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#c58b76"/><stop offset="1" stop-color="#33483e"/></linearGradient>
+    <filter id="raised" x="-25%" y="-40%" width="150%" height="200%"><feDropShadow dx="0" dy="9" stdDeviation="14" flood-color="#050609" flood-opacity="0.48"/></filter>
+
+    <symbol id="i-spark" viewBox="0 0 24 24"><path d="m12 3 1.4 5.6L19 10l-5.6 1.4L12 17l-1.4-5.6L5 10l5.6-1.4z"/></symbol>
+    <symbol id="i-target" viewBox="0 0 24 24"><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="2"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12 4 4L19 6"/></symbol>
+    <symbol id="i-alert" viewBox="0 0 24 24"><path d="M12 3 2.5 20h19zM12 9v5M12 17h.01"/></symbol>
+    <symbol id="i-stop" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2"/></symbol>
+    <symbol id="i-undo" viewBox="0 0 24 24"><path d="M9 7 5 11l4 4M5 11h8a6 6 0 0 1 6 6"/></symbol>
+    <symbol id="i-redo" viewBox="0 0 24 24"><path d="m15 7 4 4-4 4M19 11h-8a6 6 0 0 0-6 6"/></symbol>
+    <symbol id="i-external" viewBox="0 0 24 24"><path d="M14 4h6v6M20 4l-9 9M18 13v7H4V6h7"/></symbol>
+    <symbol id="i-image" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m4 17 5-5 3 3 3-3 5 5"/></symbol>
+    <symbol id="i-film" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M7 5v14M17 5v14M3 9h4M3 15h4M17 9h4M17 15h4"/></symbol>
+    <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v6l4 2"/></symbol>
+    <symbol id="i-lock" viewBox="0 0 24 24"><rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></symbol>
+    <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7h.01"/></symbol>
+  </defs>
+
+  <style>
+    text { font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    .heading { fill: #f1f3f7; font-size: 15px; font-weight: 620; }
+    .label { fill: #e5e8ed; font-size: 12px; font-weight: 560; }
+    .body { fill: #b1b6c1; font-size: 12px; font-weight: 400; }
+    .meta { fill: #747b89; font-size: 11px; font-weight: 500; }
+    .micro { fill: #6f7784; font-size: 10px; font-weight: 600; letter-spacing: 0.7px; }
+    .value { fill: #aeb5c1; font-family: ui-monospace, "SFMono-Regular", Menlo, monospace; font-size: 11px; font-variant-numeric: tabular-nums; }
+    .icon { fill: none; stroke: currentColor; stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; }
+    .divider { stroke: #292d35; stroke-width: 1; shape-rendering: crispEdges; }
+  </style>
+
+  <rect width="1440" height="900" fill="#0d0f13"/>
+
+  <!-- Header -->
+  <text x="48" y="38" fill="#f5f6f9" font-size="17" font-weight="650">Estro</text>
+  <text x="48" y="72" fill="#eef1f5" font-size="24" font-weight="620" letter-spacing="-0.35">WebMCP feedback system</text>
+  <text x="48" y="94" class="body">The page explains what the agent is doing, where it is acting, and what the user can do next.</text>
+  <text x="1392" y="42" class="micro" text-anchor="end">PRE-PHASE 1 · STATE CONTRACT</text>
+  <g transform="translate(934 67)">
+    <circle cx="5" cy="4" r="3" fill="#67afff"/><text x="16" y="8" class="meta">Local first</text>
+    <circle cx="116" cy="4" r="3" fill="#e3b15b"/><text x="127" y="8" class="meta">Truthful progress</text>
+    <circle cx="260" cy="4" r="3" fill="#61c69a"/><text x="271" y="8" class="meta">Reversible by default</text>
+  </g>
+
+  <!-- Section backplates; dividers do the grouping -->
+  <rect x="40" y="116" width="664" height="174" fill="#111318"/>
+  <rect x="736" y="116" width="664" height="174" fill="#111318"/>
+  <rect x="40" y="302" width="664" height="174" fill="#101217"/>
+  <rect x="736" y="302" width="664" height="174" fill="#101217"/>
+  <rect x="40" y="488" width="664" height="174" fill="#111318"/>
+  <rect x="736" y="488" width="664" height="174" fill="#111318"/>
+  <rect x="40" y="674" width="664" height="186" fill="#101217"/>
+  <rect x="736" y="674" width="664" height="186" fill="#101217"/>
+  <path d="M40 116h664M736 116h664M40 302h664M736 302h664M40 488h664M736 488h664M40 674h664M736 674h664" class="divider"/>
+
+  <!-- 01 Inspecting -->
+  <text x="64" y="145" class="micro">01</text>
+  <text x="92" y="145" class="heading">Inspecting and targeting</text>
+  <text x="680" y="145" class="micro" text-anchor="end">LOCAL TARGET + ACTIVITY ISLAND</text>
+  <rect x="64" y="164" width="214" height="94" rx="6" fill="#15181e" stroke="#2a2f38"/>
+  <rect x="76" y="178" width="44" height="54" rx="4" fill="url(#preview-before)"/>
+  <g color="#7c8490" class="icon"><use href="#i-film" x="89" y="195" width="18" height="18"/></g>
+  <text x="134" y="187" class="label">Voiceover.wav</text>
+  <text x="134" y="205" class="meta">Audio clip · A1</text>
+  <rect x="132" y="218" width="126" height="24" rx="4" fill="#202630"/>
+  <text x="195" y="234" fill="#a9cdf6" font-size="10" text-anchor="middle">Targeted by agent</text>
+  <rect x="63" y="163" width="216" height="96" rx="7" fill="none" stroke="url(#agent-edge)" stroke-width="1.5"/>
+
+  <g filter="url(#raised)">
+    <rect x="304" y="169" width="348" height="48" rx="24" fill="#1b1e25" stroke="#343a45"/>
+    <path d="M323 170h309" stroke="url(#agent-edge)" stroke-width="1.5" stroke-linecap="round"/>
+    <circle cx="327" cy="193" r="11" fill="#202a3a" stroke="#46648b"/>
+    <g color="#80baff" class="icon"><use href="#i-target" x="319" y="185" width="16" height="16"/></g>
+    <text x="346" y="190" class="label">Inspecting Voiceover.wav</text>
+    <text x="346" y="207" class="meta">Reading clip gain and speech ranges</text>
+    <circle cx="622" cy="193" r="2" fill="#6fb0ff"/><circle cx="629" cy="193" r="2" fill="#847ff1"/><circle cx="636" cy="193" r="2" fill="#a17df2"/>
+  </g>
+  <text x="304" y="244" class="meta">No changes yet</text>
+  <text x="652" y="244" class="meta" text-anchor="end">Esc cancels targeting</text>
+
+  <!-- 02 Proposal -->
+  <text x="760" y="145" class="micro">02</text>
+  <text x="788" y="145" class="heading">Proposal ready</text>
+  <text x="1376" y="145" class="micro" text-anchor="end">PREVIEW + SCOPE + APPLY / REJECT</text>
+  <rect x="760" y="164" width="154" height="102" rx="6" fill="#12151b" stroke="#2b3038"/>
+  <rect x="770" y="174" width="67" height="70" rx="3" fill="url(#preview-before)"/>
+  <rect x="837" y="174" width="67" height="70" rx="3" fill="url(#preview-after)"/>
+  <line x1="837" y1="174" x2="837" y2="244" stroke="#e1e7ee" stroke-width="1"/>
+  <text x="803.5" y="260" class="meta" text-anchor="middle">Before</text><text x="870.5" y="260" class="meta" text-anchor="middle">Proposed</text>
+
+  <rect x="932" y="164" width="444" height="102" rx="7" fill="#181b21" stroke="#303640"/>
+  <text x="948" y="186" class="label">Portrait correction</text>
+  <text x="948" y="204" class="meta">3 parameters · Subject mask · Revision 17</text>
+  <text x="948" y="229" class="value">Exposure +0.28</text><text x="1070" y="229" class="value">Temp +420 K</text>
+  <rect x="1191" y="218" width="72" height="30" rx="6" fill="#23262d" stroke="#323740"/><text x="1227" y="237" class="body" text-anchor="middle">Reject</text>
+  <rect x="1273" y="218" width="82" height="30" rx="6" fill="#4f98e8"/><text x="1314" y="237" fill="#08111d" font-size="12" font-weight="650" text-anchor="middle">Apply</text>
+
+  <!-- 03 Confirmation -->
+  <text x="64" y="331" class="micro">03</text>
+  <text x="92" y="331" class="heading">Awaiting confirmation</text>
+  <text x="680" y="331" class="micro" text-anchor="end">STABLE CONFIRMATION SHEET</text>
+  <g filter="url(#raised)">
+    <rect x="64" y="348" width="616" height="106" rx="9" fill="#191c22" stroke="#373b43"/>
+    <circle cx="91" cy="376" r="13" fill="#312a1d" stroke="#6a5735"/>
+    <g color="#e3b15b" class="icon"><use href="#i-external" x="82" y="367" width="18" height="18"/></g>
+    <text x="116" y="372" class="label">Publish the review copy?</text>
+    <text x="116" y="390" class="meta">YouTube · Unlisted · “Anniversary film — review 03”</text>
+    <g color="#777f8b" class="icon"><use href="#i-lock" x="82" y="410" width="17" height="17"/></g>
+    <text x="108" y="423" class="meta">Uploads one rendered file. Existing project media stays private.</text>
+    <rect x="494" y="404" width="72" height="30" rx="6" fill="#23262d" stroke="#323740"/><text x="530" y="423" class="body" text-anchor="middle">Cancel</text>
+    <rect x="576" y="404" width="84" height="30" rx="6" fill="#4f98e8"/><text x="618" y="423" fill="#08111d" font-size="12" font-weight="650" text-anchor="middle">Publish</text>
+  </g>
+
+  <!-- 04 Running -->
+  <text x="760" y="331" class="micro">04</text>
+  <text x="788" y="331" class="heading">Running and durable</text>
+  <text x="1376" y="331" class="micro" text-anchor="end">ACTIVITY ISLAND + JOB CENTER</text>
+  <rect x="760" y="348" width="308" height="40" rx="20" fill="#1b1e25" stroke="#343a45"/>
+  <path d="M778 349h271" stroke="url(#agent-edge)" stroke-width="1.5" stroke-linecap="round"/>
+  <circle cx="782" cy="368" r="9" fill="#202a3a" stroke="#46648b"/>
+  <g color="#80baff" class="icon"><use href="#i-spark" x="775" y="361" width="14" height="14"/></g>
+  <text x="800" y="365" class="label">Rendering social cut</text><text x="800" y="379" class="meta">Encoding H.264</text>
+
+  <rect x="760" y="400" width="616" height="60" rx="7" fill="#181b21" stroke="#30353e"/>
+  <g color="#7d8794" class="icon"><use href="#i-film" x="776" y="414" width="20" height="20"/></g>
+  <text x="808" y="420" class="label">Social cut · 1080 × 1920</text>
+  <text x="808" y="438" class="meta">744 / 1,820 frames · Worker 02</text>
+  <rect x="808" y="446" width="430" height="4" rx="2" fill="#2a2e36"/><rect x="808" y="446" width="176" height="4" rx="2" fill="#67afff"/>
+  <rect x="1284" y="415" width="72" height="28" rx="5" fill="#23262d" stroke="#323740"/><text x="1320" y="433" class="body" text-anchor="middle">Cancel</text>
+
+  <!-- 05 Complete -->
+  <text x="64" y="517" class="micro">05</text>
+  <text x="92" y="517" class="heading">Complete and undoable</text>
+  <text x="680" y="517" class="micro" text-anchor="end">LOCAL HIGHLIGHT + SUMMARY</text>
+  <rect x="64" y="536" width="222" height="100" rx="6" fill="#15181e" stroke="#2d333b"/>
+  <rect x="76" y="550" width="42" height="58" rx="4" fill="#31413c"/>
+  <g color="#67bd98" class="icon"><use href="#i-film" x="88" y="570" width="18" height="18"/></g>
+  <text x="132" y="561" class="label">Voiceover.wav</text><text x="132" y="579" class="meta">Gain −1.8 dB</text><text x="132" y="599" fill="#81c5a8" font-size="10">Changed by agent</text>
+  <rect x="63" y="535" width="224" height="102" rx="7" fill="none" stroke="#5dac8b" stroke-width="1.5"/>
+
+  <g filter="url(#raised)">
+    <rect x="308" y="536" width="372" height="100" rx="8" fill="#191c22" stroke="#334039"/>
+    <circle cx="334" cy="562" r="12" fill="#203129"/>
+    <g color="#65c198" class="icon"><use href="#i-check" x="326" y="554" width="16" height="16"/></g>
+    <text x="356" y="559" class="label">Dialogue balanced</text><text x="356" y="577" class="meta">3 clips changed · Revision 18</text>
+    <text x="324" y="612" class="meta">Music reduced only under detected speech.</text>
+    <rect x="592" y="590" width="68" height="28" rx="5" fill="#232a31" stroke="#35414c"/>
+    <g color="#a5bdd7" class="icon"><use href="#i-undo" x="602" y="596" width="15" height="15"/></g><text x="637" y="608" fill="#cbd7e7" font-size="11" text-anchor="middle">Undo</text>
+  </g>
+
+  <!-- 06 Failed -->
+  <text x="760" y="517" class="micro">06</text>
+  <text x="788" y="517" class="heading">Failed with preserved work</text>
+  <text x="1376" y="517" class="micro" text-anchor="end">CAUSE + RETRY / FALLBACK</text>
+  <rect x="760" y="536" width="616" height="108" rx="8" fill="#1a191d" stroke="#49343a"/>
+  <circle cx="788" cy="566" r="13" fill="#382126"/>
+  <g color="#e47d85" class="icon"><use href="#i-alert" x="779" y="557" width="18" height="18"/></g>
+  <text x="812" y="561" class="label">Couldn’t decode coastal-drive.mov</text>
+  <text x="812" y="580" class="meta">This browser does not support the clip’s codec. Your project is unchanged.</text>
+  <text x="780" y="615" class="meta">Try a compatible proxy or send this job to a configured worker.</text>
+  <rect x="1152" y="598" width="92" height="30" rx="6" fill="#23262d" stroke="#323740"/><text x="1198" y="617" class="body" text-anchor="middle">Dismiss</text>
+  <rect x="1254" y="598" width="102" height="30" rx="6" fill="#2a3039" stroke="#3d4c5e"/><text x="1305" y="617" fill="#c7d8ea" font-size="12" text-anchor="middle">Use worker</text>
+
+  <!-- 07 Cancelled -->
+  <text x="64" y="703" class="micro">07</text>
+  <text x="92" y="703" class="heading">Cancelled cleanly</text>
+  <text x="680" y="703" class="micro" text-anchor="end">NEUTRAL STOPPED STATE</text>
+  <rect x="64" y="724" width="616" height="108" rx="8" fill="#17191e" stroke="#30343c"/>
+  <circle cx="92" cy="754" r="13" fill="#262930"/>
+  <g color="#939ba7" class="icon"><use href="#i-stop" x="83" y="745" width="18" height="18"/></g>
+  <text x="116" y="749" class="label">Render cancelled</text><text x="116" y="768" class="meta">Stopped before packaging. No output file was saved.</text>
+  <text x="84" y="806" class="meta">Project edits and cached preview frames were kept.</text>
+  <rect x="498" y="788" width="72" height="28" rx="5" fill="#23262d" stroke="#323740"/><text x="534" y="806" class="body" text-anchor="middle">Dismiss</text>
+  <rect x="580" y="788" width="80" height="28" rx="5" fill="#272c34" stroke="#39434f"/><text x="620" y="806" fill="#c9d5e2" font-size="11" text-anchor="middle">Try again</text>
+
+  <!-- 08 Undo result -->
+  <text x="760" y="703" class="micro">08</text>
+  <text x="788" y="703" class="heading">Undo result</text>
+  <text x="1376" y="703" class="micro" text-anchor="end">RESTORED STATE + REDO</text>
+  <rect x="760" y="724" width="616" height="108" rx="8" fill="#171a20" stroke="#303945"/>
+  <circle cx="788" cy="754" r="13" fill="#202b37"/>
+  <g color="#75b7ff" class="icon"><use href="#i-undo" x="779" y="745" width="18" height="18"/></g>
+  <text x="812" y="749" class="label">Undid “Portrait correction”</text>
+  <text x="812" y="768" class="meta">Exposure, temperature, and subject shadows restored.</text>
+  <g color="#7d8794" class="icon"><use href="#i-info" x="780" y="790" width="16" height="16"/></g>
+  <text x="804" y="803" class="meta">Revision 17 is active · Original media was never changed</text>
+  <rect x="1280" y="788" width="76" height="28" rx="5" fill="#252b34" stroke="#3c4959"/>
+  <g color="#a9bdd3" class="icon"><use href="#i-redo" x="1290" y="794" width="15" height="15"/></g><text x="1332" y="806" fill="#cbd7e7" font-size="11" text-anchor="middle">Redo</text>
+
+  <text x="40" y="886" class="meta">Color always accompanies an icon and plain text. Long-running work remains available in Job Center after navigation.</text>
+  <text x="1400" y="886" class="meta" text-anchor="end">Static reference · Motion behavior is defined in the blueprint</text>
+</svg>
