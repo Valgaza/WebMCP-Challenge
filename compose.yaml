@@ -1,0 +1,16 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    working_dir: /workspace
+    ports:
+      - "5173:5173"
+    volumes:
+      - .:/workspace
+      - estro_node_modules:/workspace/node_modules
+    environment:
+      NODE_ENV: development
+
+volumes:
+  estro_node_modules:
