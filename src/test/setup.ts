@@ -21,3 +21,13 @@ Object.defineProperty(HTMLDialogElement.prototype, "close", {
     this.dispatchEvent(new Event("close"));
   },
 });
+
+Object.defineProperty(HTMLElement.prototype, "setPointerCapture", {
+  configurable: true,
+  value() {},
+});
+
+Object.defineProperty(HTMLElement.prototype, "releasePointerCapture", {
+  configurable: true,
+  value() {},
+});

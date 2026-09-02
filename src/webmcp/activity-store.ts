@@ -1,4 +1,4 @@
-export type ActivityStage = "inspecting" | "validating" | "proposing" | "awaiting_confirmation" | "committing" | "complete" | "failed" | "cancelled";
+export type ActivityStage = "targeting" | "inspecting" | "validating" | "proposing" | "awaiting_confirmation" | "committing" | "complete" | "failed" | "cancelled";
 
 export interface WebMcpActivity {
   id: string;

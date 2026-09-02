@@ -10,6 +10,7 @@ import type {
 import type { ProjectHistorySnapshot } from "../data/project-repository";
 import type { ProjectRecord } from "../domain/project";
 import type { ProjectRevision, ProjectTransaction } from "../domain/project-history";
+import { createDefaultWorkspacePreference, type WorkspaceChange, type WorkspacePreference } from "../domain/workspace";
 import { ProjectWorkspace } from "./ProjectWorkspacePage";
 
 type WorkspaceService = ProjectLifecycleService & ProjectHistoryService;
@@ -96,11 +97,32 @@ function result(history: ProjectHistorySnapshot, latest: ProjectTransaction): Pr
   };
 }
 
+function createWorkspaceApi() {
+  let workspace = createDefaultWorkspacePreference("project-1", "2026-09-01T08:00:00.000Z");
+  const listeners = new Set<(value: WorkspacePreference) => void>();
+  return {
+    getWorkspace: vi.fn(async () => workspace),
+    applyWorkspaceChange: vi.fn(async (_projectId: string, input: WorkspaceChange) => {
+      const change = input as Exclude<WorkspaceChange, undefined>;
+      if (change.type === "viewport") workspace = { ...workspace, viewport: change.viewport, updatedAt: "2026-09-01T08:02:00.000Z" };
+      else if (change.type === "tool") workspace = { ...workspace, activeTool: change.tool };
+      else if (change.type === "overlay") workspace = { ...workspace, overlays: { ...workspace.overlays, [change.overlay]: change.enabled } };
+      else if (change.type === "distraction_free") workspace = { ...workspace, distractionFree: change.enabled };
+      else if (change.type === "selection") workspace = { ...workspace, selection: { type: change.selectionType, targetId: change.targetId } };
+      else if (change.type === "dock") workspace = { ...workspace, leadingPanel: change.leadingPanel };
+      else if (change.type === "panel") workspace = { ...workspace, panels: { ...workspace.panels, [change.panel]: { ...workspace.panels[change.panel], ...(change.open === undefined ? {} : { open: change.open }), ...(change.widthPx === undefined ? {} : { widthPx: change.widthPx }) } } };
+      listeners.forEach((listener) => listener(workspace));
+      return workspace;
+    }),
+    subscribe: vi.fn((_projectId: string, listener: (value: WorkspacePreference) => void) => { listeners.add(listener); return () => listeners.delete(listener); }),
+  };
+}
+
 function renderWorkspace(service: WorkspaceService) {
   return render(
     <MemoryRouter initialEntries={["/editor/project-1"]}>
       <Routes>
-        <Route path="/editor/:projectId" element={<ProjectWorkspace service={service} />} />
+        <Route path="/editor/:projectId" element={<ProjectWorkspace service={service} workspaceApi={createWorkspaceApi()} />} />
       </Routes>
     </MemoryRouter>,
   );
@@ -171,6 +193,8 @@ describe("ProjectWorkspace", () => {
     };
 
     renderWorkspace(service);
+    await screen.findByRole("heading", { name: "Layers" });
+    await user.click(screen.getByRole("tab", { name: "History" }));
     expect(await screen.findByRole("heading", { name: "History" })).toBeInTheDocument();
     expect(screen.getByText("Renamed project to “Anniversary film”.")).toBeInTheDocument();
     expect(screen.getByText(/You ·/)).toBeInTheDocument();
@@ -216,7 +240,7 @@ describe("ProjectWorkspace", () => {
     };
 
     renderWorkspace(service);
-    await screen.findByRole("heading", { name: "History" });
+    await screen.findByRole("heading", { name: "Layers" });
     await user.click(screen.getByRole("button", { name: "Rename project" }));
     const input = screen.getByLabelText("Project name");
     await user.clear(input);

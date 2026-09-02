@@ -11,6 +11,7 @@ describe("ProjectService", () => {
   let revisionCounter: number;
   let transactionCounter: number;
   let operationCounter: number;
+  let documentCounter: number;
   let now: Date;
 
   beforeEach(() => {
@@ -19,6 +20,7 @@ describe("ProjectService", () => {
     revisionCounter = 0;
     transactionCounter = 0;
     operationCounter = 0;
+    documentCounter = 0;
     now = new Date("2026-09-01T08:00:00.000Z");
     service = new ProjectService(new ProjectRepository(database), {
       now: () => now,
@@ -26,6 +28,7 @@ describe("ProjectService", () => {
       createRevisionId: () => `revision-${++revisionCounter}`,
       createTransactionId: () => `transaction-${++transactionCounter}`,
       createOperationId: () => `operation-${++operationCounter}`,
+      createDocumentId: () => `document-${++documentCounter}`,
     });
   });
 
@@ -135,6 +138,55 @@ describe("ProjectService", () => {
 
     expect(branched.project.redoTransactionIds).toEqual([]);
     await expect(service.redoProject(created.id)).rejects.toMatchObject({ code: "HISTORY_NOT_AVAILABLE" });
+  });
+
+  it("creates, undoes, and redoes an empty image document through immutable revisions", async () => {
+    const created = await service.createProject({ name: "Poster", kind: "unassigned" });
+    const documentResult = await service.createPhotoDocument({
+      projectId: created.id,
+      expectedRevisionId: created.headRevisionId,
+      widthPx: 1920,
+      heightPx: 1080,
+      resolutionPpi: 72,
+      orientation: "landscape",
+      background: { type: "transparent" },
+    });
+
+    expect(documentResult.project).toMatchObject({ kind: "photo", headRevisionId: "revision-2" });
+    expect(documentResult.headRevision.state.photoDocument).toMatchObject({
+      id: "document-1", widthPx: 1920, heightPx: 1080, orientation: "landscape",
+    });
+    expect(documentResult.transaction).toMatchObject({
+      summary: "Created a 1920 × 1080 image document.",
+      affectedIds: [created.id, "document-1"],
+      undoable: true,
+    });
+
+    const undone = await service.undoProject(created.id);
+    expect(undone.project.kind).toBe("unassigned");
+    expect(undone.headRevision.state.photoDocument).toBeNull();
+
+    const redone = await service.redoProject(created.id);
+    expect(redone.project.kind).toBe("photo");
+    expect(redone.headRevision.state.photoDocument).toMatchObject({ id: "document-1" });
+  });
+
+  it("rejects stale, mismatched, and duplicate image-document commands without mutation", async () => {
+    const project = await service.createProject({ name: "Poster", kind: "photo" });
+    await expect(service.createPhotoDocument({
+      projectId: project.id, expectedRevisionId: "stale-revision", widthPx: 1000, heightPx: 1000,
+      resolutionPpi: 72, orientation: "square", background: { type: "solid", color: "#ffffff" },
+    })).rejects.toMatchObject({ code: "HISTORY_CONFLICT" });
+
+    const created = await service.createPhotoDocument({
+      projectId: project.id, expectedRevisionId: project.headRevisionId, widthPx: 1000, heightPx: 1000,
+      resolutionPpi: 72, orientation: "square", background: { type: "solid", color: "#ffffff" },
+    });
+    await expect(service.createPhotoDocument({
+      projectId: project.id, expectedRevisionId: created.headRevision.id, widthPx: 1000, heightPx: 1000,
+      resolutionPpi: 72, orientation: "square", background: { type: "transparent" },
+    })).rejects.toMatchObject({ code: "HISTORY_CONFLICT" });
+    await expect(service.getProjectHistory(project.id)).resolves.toMatchObject({ headRevision: { id: created.headRevision.id } });
   });
 
   it("does not mutate the project when its Undo target is corrupted", async () => {

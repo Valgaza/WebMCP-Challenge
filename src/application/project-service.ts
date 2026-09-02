@@ -29,6 +29,12 @@ import {
   type RecoverableProjectSummary,
 } from "../domain/project-persistence";
 import { ProjectError, toProjectError } from "../domain/project-error";
+import {
+  PHOTO_DOCUMENT_SCHEMA_VERSION,
+  createPhotoDocumentInputSchema,
+  type CreatePhotoDocumentInput,
+  type PhotoDocument,
+} from "../domain/photo-document";
 import type { ProjectHistorySnapshot, ProjectRepository } from "../data/project-repository";
 
 export interface ProjectServiceOptions {
@@ -40,6 +46,7 @@ export interface ProjectServiceOptions {
   createOperationId?: () => string;
   createSnapshotId?: () => string;
   createProposalId?: () => string;
+  createDocumentId?: () => string;
 }
 
 export interface ProjectCommandContext {
@@ -70,6 +77,14 @@ export interface ProjectHistoryService {
   redoProject(projectId: string, context?: ProjectCommandContext): Promise<ProjectMutationResult>;
 }
 
+export interface PhotoDocumentService {
+  createPhotoDocument(input: CreatePhotoDocumentInput, context?: ProjectCommandContext): Promise<ProjectMutationResult>;
+}
+
+export interface ProjectObservationService {
+  subscribeProject(projectId: string, listener: (result: ProjectMutationResult) => void): () => void;
+}
+
 export interface ProjectPersistenceService {
   getProjectPersistence(projectId: string): Promise<ProjectPersistenceSnapshot>;
   listRecoverableProjects(): Promise<RecoverableProjectSummary[]>;
@@ -98,7 +113,7 @@ interface PendingAutosave {
   reject: (error: unknown) => void;
 }
 
-export class ProjectService implements ProjectLifecycleService, ProjectHistoryService, ProjectPersistenceService, ProjectAutomationService {
+export class ProjectService implements ProjectLifecycleService, ProjectHistoryService, ProjectPersistenceService, ProjectAutomationService, PhotoDocumentService {
   private readonly now: () => Date;
   private readonly createProjectId: () => string;
   private readonly createRevisionId: () => string;
@@ -106,8 +121,10 @@ export class ProjectService implements ProjectLifecycleService, ProjectHistorySe
   private readonly createOperationId: () => string;
   private readonly createSnapshotId: () => string;
   private readonly createProposalId: () => string;
+  private readonly createDocumentId: () => string;
   private readonly autosaveDelayMs: number | null;
   private readonly pendingAutosaves = new Map<string, PendingAutosave>();
+  private readonly projectListeners = new Map<string, Set<(result: ProjectMutationResult) => void>>();
 
   constructor(private readonly repository: ProjectRepository, options: ProjectServiceOptions = {}) {
     this.now = options.now ?? (() => new Date());
@@ -117,6 +134,7 @@ export class ProjectService implements ProjectLifecycleService, ProjectHistorySe
     this.createOperationId = options.createOperationId ?? (() => crypto.randomUUID());
     this.createSnapshotId = options.createSnapshotId ?? (() => crypto.randomUUID());
     this.createProposalId = options.createProposalId ?? (() => crypto.randomUUID());
+    this.createDocumentId = options.createDocumentId ?? (() => crypto.randomUUID());
     this.autosaveDelayMs = options.autosaveDelayMs === undefined ? null : Math.max(0, options.autosaveDelayMs);
   }
 
@@ -144,6 +162,15 @@ export class ProjectService implements ProjectLifecycleService, ProjectHistorySe
   }
   getProposal(proposalId: string): Promise<ProjectProposal> { return this.repository.getProposal(proposalId); }
   inspectTransaction(transactionId: string): Promise<ProjectTransaction> { return this.repository.getTransaction(transactionId); }
+  subscribeProject(projectId: string, listener: (result: ProjectMutationResult) => void): () => void {
+    const listeners = this.projectListeners.get(projectId) ?? new Set();
+    listeners.add(listener);
+    this.projectListeners.set(projectId, listeners);
+    return () => {
+      listeners.delete(listener);
+      if (!listeners.size) this.projectListeners.delete(projectId);
+    };
+  }
 
   async createProject(input: CreateProjectInput, context: ProjectCommandContext = {}): Promise<ProjectRecord> {
     try {
@@ -152,7 +179,7 @@ export class ProjectService implements ProjectLifecycleService, ProjectHistorySe
       const projectId = this.createProjectId();
       const revisionId = this.createRevisionId();
       const transactionId = this.createTransactionId();
-      const state = { name: parsed.name, kind: parsed.kind, status: "active" as const };
+      const state = { name: parsed.name, kind: parsed.kind, status: "active" as const, photoDocument: null };
       const operation: ProjectOperation = {
         id: this.createOperationId(), schemaVersion: HISTORY_SCHEMA_VERSION, type: "project.create", projectId, state,
       };
@@ -181,6 +208,45 @@ export class ProjectService implements ProjectLifecycleService, ProjectHistorySe
 
   async openProject(projectId: string): Promise<ProjectRecord> {
     return this.repository.markOpened(projectId, this.now().toISOString());
+  }
+
+  async createPhotoDocument(input: CreatePhotoDocumentInput, context: ProjectCommandContext = {}): Promise<ProjectMutationResult> {
+    try {
+      const parsed = createPhotoDocumentInputSchema.parse(input);
+      const history = await this.repository.getHistory(parsed.projectId);
+      if (parsed.expectedRevisionId && parsed.expectedRevisionId !== history.headRevision.id) {
+        throw new ProjectError("HISTORY_CONFLICT", "The project changed before the image document could be created. Inspect the latest revision and try again.");
+      }
+      if (history.headRevision.state.kind === "video") {
+        throw new ProjectError("INVALID_INPUT", "Create an image document in a photo or unassigned project.", { fieldPath: "projectId" });
+      }
+      if (history.headRevision.state.photoDocument) {
+        throw new ProjectError("HISTORY_CONFLICT", "This project already has an image document.");
+      }
+      const document: PhotoDocument = {
+        id: this.createDocumentId(),
+        schemaVersion: PHOTO_DOCUMENT_SCHEMA_VERSION,
+        widthPx: parsed.widthPx,
+        heightPx: parsed.heightPx,
+        resolutionPpi: parsed.resolutionPpi,
+        orientation: parsed.orientation,
+        background: parsed.background,
+        createdAt: this.now().toISOString(),
+      };
+      const operation: ProjectOperation = {
+        id: this.createOperationId(), schemaVersion: HISTORY_SCHEMA_VERSION, type: "document.create",
+        projectId: parsed.projectId, fromKind: history.headRevision.state.kind, document,
+      };
+      return await this.commitOperations(history, [operation], {
+        actor: this.parseActor(context),
+        intent: context.intent ?? `Create a ${document.widthPx} × ${document.heightPx} pixel image document.`,
+        summary: `Created a ${document.widthPx} × ${document.heightPx} image document.`,
+        kind: "mutation", targetTransactionId: null, undoable: true,
+        undoTransactionIds: [...history.project.undoTransactionIds], redoTransactionIds: [],
+        affectedIds: [history.project.id, document.id],
+        normalizedParameters: { ...parsed, documentId: document.id },
+      });
+    } catch (error) { throw toProjectError(error); }
   }
 
   async renameProject(input: RenameProjectInput, context: ProjectCommandContext = {}): Promise<ProjectMutationResult> {
@@ -455,6 +521,8 @@ export class ProjectService implements ProjectLifecycleService, ProjectHistorySe
     const parts = operations.map((operation) => {
       if (operation.type === "project.rename") return `rename the project to “${operation.toName}”`;
       if (operation.type === "project.snapshot") return `save snapshot “${operation.name}”`;
+      if (operation.type === "document.create") return `create a ${operation.document.widthPx} × ${operation.document.heightPx} image document`;
+      if (operation.type === "document.remove") return "remove the image document";
       return operation.type.replace("project.", "");
     });
     const joined = parts.length === 1 ? parts[0] : `${parts.slice(0, -1).join(", ")} and ${parts.at(-1)}`;
@@ -508,10 +576,12 @@ export class ProjectService implements ProjectLifecycleService, ProjectHistorySe
     });
     if ((metadata.durabilityMode ?? "draft") === "draft") this.scheduleAutosave(history.project.id);
     else this.resolvePendingAutosave(history.project.id);
-    return {
+    const result = {
       ...committed, transaction, canUndo: committed.project.undoTransactionIds.length > 0,
       canRedo: committed.project.redoTransactionIds.length > 0, normalizedParameters: metadata.normalizedParameters,
     };
+    this.projectListeners.get(history.project.id)?.forEach((listener) => listener(result));
+    return result;
   }
 
   private scheduleAutosave(projectId: string): void {

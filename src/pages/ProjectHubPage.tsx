@@ -20,6 +20,7 @@ import type { RecoverableProjectSummary } from "../domain/project-persistence";
 import { ProjectError } from "../domain/project-error";
 import { projectService as defaultProjectService } from "../app/services";
 import { getWebMcpAvailability } from "../webmcp/model-context";
+import { ESTRO_TOOL_COUNT } from "../webmcp/site-tools";
 
 type ProjectFilter = "all" | "recent" | "recoverable";
 
@@ -206,7 +207,7 @@ export function ProjectHub({ service = defaultProjectService }: ProjectHubProps)
         <div className="webmcp-status" role="status" aria-label="WebMCP availability">
           <Sparkles aria-hidden="true" size={15} />
           <span>{webMcpAvailability === "available" ? "WebMCP detected" : "Manual controls"}</span>
-          <small>{webMcpAvailability === "available" ? "7 tools ready" : "WebMCP unavailable"}</small>
+          <small>{webMcpAvailability === "available" ? `${ESTRO_TOOL_COUNT} tools ready` : "WebMCP unavailable"}</small>
         </div>
         <button className="button button--primary top-bar__primary" type="button" onClick={() => setNameDialog({ mode: "create" })}>
           <Plus aria-hidden="true" size={16} />

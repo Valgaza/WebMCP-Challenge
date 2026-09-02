@@ -11,6 +11,7 @@ import {
   type ProjectProposal,
   type ProjectSnapshot,
 } from "../domain/project-persistence";
+import type { WorkspacePreference } from "../domain/workspace";
 
 interface LegacyProjectRecord extends Omit<ProjectRecord, "headRevisionId" | "undoTransactionIds" | "redoTransactionIds"> {}
 
@@ -21,6 +22,7 @@ export class EstroDatabase extends Dexie {
   durability!: EntityTable<ProjectDurability, "projectId">;
   snapshots!: EntityTable<ProjectSnapshot, "id">;
   proposals!: EntityTable<ProjectProposal, "id">;
+  workspaces!: EntityTable<WorkspacePreference, "projectId">;
 
   constructor(name = "estro") {
     super(name);
@@ -42,7 +44,7 @@ export class EstroDatabase extends Dexie {
           const revisionId = `migration-revision-${project.id}`;
           const transactionId = `migration-transaction-${project.id}`;
           const operationId = `migration-operation-${project.id}`;
-          const state = { name: project.name, kind: project.kind, status: project.status };
+          const state = { name: project.name, kind: project.kind, status: project.status, photoDocument: null };
 
           const historyTransaction: ProjectTransaction = {
             id: transactionId,
@@ -134,6 +136,45 @@ export class EstroDatabase extends Dexie {
             recoveryReason: null,
             recoveryCreatedAt: null,
           } satisfies ProjectDurability);
+        }
+      });
+
+    this.version(5)
+      .stores({
+        projects: "id, name, kind, status, updatedAt, lastOpenedAt, headRevisionId",
+        revisions: "id, projectId, parentRevisionId, transactionId, createdAt",
+        transactions: "id, projectId, resultingRevisionId, kind, createdAt",
+        durability: "projectId, durableRevisionId, recoveryCreatedAt",
+        snapshots: "id, projectId, revisionId, transactionId, status, createdAt",
+        proposals: "id, projectId, sourceRevisionId, status, expiresAt",
+        workspaces: "projectId, updatedAt",
+      })
+      .upgrade(async (transaction) => {
+        const revisions = await transaction.table("revisions").toArray();
+        for (const revision of revisions) {
+          if (!("photoDocument" in revision.state)) {
+            await transaction.table("revisions").put({ ...revision, state: { ...revision.state, photoDocument: null } });
+          }
+        }
+        const transactions = await transaction.table("transactions").toArray();
+        for (const historyTransaction of transactions) {
+          const operations = historyTransaction.operations.map((operation: Record<string, unknown>) => {
+            if (operation.type === "project.create" || operation.type === "project.duplicate") {
+              const state = operation.state as Record<string, unknown>;
+              return { ...operation, state: { ...state, photoDocument: state.photoDocument ?? null } };
+            }
+            if (operation.type === "project.restore") {
+              const fromState = operation.fromState as Record<string, unknown>;
+              const toState = operation.toState as Record<string, unknown>;
+              return {
+                ...operation,
+                fromState: { ...fromState, photoDocument: fromState.photoDocument ?? null },
+                toState: { ...toState, photoDocument: toState.photoDocument ?? null },
+              };
+            }
+            return operation;
+          });
+          await transaction.table("transactions").put({ ...historyTransaction, operations });
         }
       });
   }

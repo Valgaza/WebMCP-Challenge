@@ -2,6 +2,7 @@ import Dexie from "dexie";
 import { afterEach, describe, expect, it } from "vitest";
 import { EstroDatabase } from "./estro-database";
 import { ProjectRepository } from "./project-repository";
+import { WorkspaceService } from "../application/workspace-service";
 
 describe("EstroDatabase migrations", () => {
   let databaseName: string | null = null;
@@ -128,5 +129,33 @@ describe("EstroDatabase migrations", () => {
     expect(history.transactions).toHaveLength(1);
     expect(history.headRevision.id).toBe("revision-intermediate");
     repaired.close();
+  });
+
+  it("normalizes Phase 1 revisions and creates workspace preferences in schema version 5", async () => {
+    databaseName = `estro-phase-2-migration-${crypto.randomUUID()}`;
+    const phaseOne = new Dexie(databaseName);
+    phaseOne.version(4).stores({
+      projects: "id, name, kind, status, updatedAt, lastOpenedAt, headRevisionId",
+      revisions: "id, projectId, parentRevisionId, transactionId, createdAt",
+      transactions: "id, projectId, resultingRevisionId, kind, createdAt",
+      durability: "projectId, durableRevisionId, recoveryCreatedAt",
+      snapshots: "id, projectId, revisionId, transactionId, status, createdAt",
+      proposals: "id, projectId, sourceRevisionId, status, expiresAt",
+    });
+    const createdAt = "2026-09-01T08:00:00.000Z";
+    await phaseOne.transaction("rw", phaseOne.table("projects"), phaseOne.table("revisions"), phaseOne.table("transactions"), phaseOne.table("durability"), async () => {
+      await phaseOne.table("projects").add({ id: "phase-1-project", schemaVersion: 2, name: "Existing canvas", kind: "unassigned", status: "active", storageMode: "local", createdAt, updatedAt: createdAt, lastOpenedAt: null, deletedAt: null, headRevisionId: "phase-1-revision", undoTransactionIds: [], redoTransactionIds: [] });
+      await phaseOne.table("revisions").add({ id: "phase-1-revision", schemaVersion: 1, projectId: "phase-1-project", sequence: 0, parentRevisionId: null, transactionId: "phase-1-transaction", state: { name: "Existing canvas", kind: "unassigned", status: "active" }, createdAt });
+      await phaseOne.table("transactions").add({ id: "phase-1-transaction", schemaVersion: 1, projectId: "phase-1-project", sequence: 0, kind: "initialize", targetTransactionId: null, sourceRevisionId: null, resultingRevisionId: "phase-1-revision", operations: [{ id: "phase-1-operation", schemaVersion: 1, type: "project.create", projectId: "phase-1-project", state: { name: "Existing canvas", kind: "unassigned", status: "active" } }], actor: { type: "system", id: "phase-1", displayName: "Phase 1" }, intent: "Create project.", summary: "Created project.", affectedIds: ["phase-1-project"], warnings: [], undoable: false, createdAt });
+      await phaseOne.table("durability").add({ projectId: "phase-1-project", schemaVersion: 1, durableRevisionId: "phase-1-revision", lastExplicitSaveAt: createdAt, lastAutosaveAt: null, recoveryReason: null, recoveryCreatedAt: null });
+    });
+    phaseOne.close();
+
+    const upgraded = new EstroDatabase(databaseName);
+    const history = await new ProjectRepository(upgraded).getHistory("phase-1-project");
+    expect(history.headRevision.state.photoDocument).toBeNull();
+    expect(history.transactions[0]?.operations[0]).toMatchObject({ state: { photoDocument: null } });
+    await expect(new WorkspaceService(upgraded).getWorkspace("phase-1-project")).resolves.toMatchObject({ projectId: "phase-1-project", schemaVersion: 1, viewport: { mode: "fit" } });
+    upgraded.close();
   });
 });

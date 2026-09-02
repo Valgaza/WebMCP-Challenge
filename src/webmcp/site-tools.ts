@@ -1,11 +1,18 @@
 import { z } from "zod";
 import type { ProjectService } from "../application/project-service";
+import type { WorkspaceService } from "../application/workspace-service";
 import { ProjectError, toProjectError } from "../domain/project-error";
 import { proposedOperationSchema } from "../domain/project-persistence";
+import { createPhotoDocumentInputSchema } from "../domain/photo-document";
+import { workspaceChangeSchema } from "../domain/workspace";
+import { editorCommands, searchEditorCommands } from "../editor/editor-commands";
+import { getSemanticTarget, semanticTargets } from "../editor/semantic-targets";
 import { webMcpActivityStore } from "./activity-store";
+import { focusStore } from "./focus-store";
 import type { ModelContextApi, ModelContextToolDefinition } from "./model-context";
 
-export const WEBMCP_SCHEMA_VERSION = "1.0.0";
+export const WEBMCP_SCHEMA_VERSION = "2.0.0";
+export const ESTRO_TOOL_COUNT = 15;
 
 const inspectProjectSchema = z.object({ projectId: z.string().min(1), historyLimit: z.number().int().min(1).max(20).default(8) });
 const manageProjectSchema = z.discriminatedUnion("operation", [
@@ -21,6 +28,15 @@ const proposalInputSchema = z.object({ projectId: z.string().min(1), operations:
 const proposalIdSchema = z.object({ proposalId: z.string().min(1) });
 const transactionIdSchema = z.object({ transactionId: z.string().min(1) });
 const undoSchema = z.object({ projectId: z.string().min(1), transactionId: z.string().min(1) });
+const projectIdSchema = z.object({ projectId: z.string().min(1) });
+const workspaceInputSchema = z.object({ projectId: z.string().min(1), change: workspaceChangeSchema });
+const selectionInputSchema = z.object({
+  projectId: z.string().min(1),
+  selectionType: z.enum(["none", "canvas", "document"]),
+  targetId: z.string().min(1).nullable(),
+});
+const focusInputSchema = z.object({ projectId: z.string().min(1), targetId: z.string().min(1) });
+const searchCommandsSchema = z.object({ query: z.string().max(120).default("") });
 
 const actor = { type: "agent" as const, id: "webmcp-agent", displayName: "WebMCP agent" };
 
@@ -86,7 +102,7 @@ function resultForMutation(result: Awaited<ReturnType<ProjectService["renameProj
   };
 }
 
-export function createEstroSiteTools(service: ProjectService): ModelContextToolDefinition[] {
+export function createEstroSiteTools(service: ProjectService, workspaceService: WorkspaceService): ModelContextToolDefinition[] {
   const execute = (stage: Parameters<typeof webMcpActivityStore.show>[0]["stage"], title: string, detail: string, task: () => Promise<Record<string, unknown>>) =>
     async () => {
       const id = crypto.randomUUID();
@@ -114,10 +130,13 @@ export function createEstroSiteTools(service: ProjectService): ModelContextToolD
       inputSchema: jsonSchema(),
       annotations: { readOnlyHint: true },
       execute: execute("inspecting", "Inspecting Estro capabilities", "Reading the bounded local capability contract.", async () => ({
-        ok: true, schemaVersion: WEBMCP_SCHEMA_VERSION, toolCount: 7, storage: "browser-indexeddb", remoteCompute: false,
-        operations: ["create", "rename", "duplicate", "save", "save_as", "snapshot", "request_delete", "propose", "apply", "undo"],
-        limits: { inspectionHistory: 20, proposalOperations: 10, proposalLifetimeSeconds: 600 },
+        ok: true, schemaVersion: WEBMCP_SCHEMA_VERSION, toolCount: ESTRO_TOOL_COUNT, storage: "browser-indexeddb", remoteCompute: false,
+        operations: ["create", "rename", "duplicate", "save", "save_as", "snapshot", "request_delete", "propose", "apply", "undo", "create_image_document", "inspect_workspace", "set_workspace", "inspect_selection", "set_selection", "focus_ui", "search_commands"],
+        limits: { inspectionHistory: 20, proposalOperations: 10, proposalLifetimeSeconds: 600, documentPixelsPerAxis: 32768, zoom: { minimum: 0.05, maximum: 32 }, panelWidths: { left: [224, 360], inspector: [272, 400] } },
         permissionPolicy: { destructiveDeletion: "explicit-visible-confirmation" },
+        capabilities: { fullscreen: typeof document.fullscreenEnabled === "boolean" ? document.fullscreenEnabled : false, pointerEvents: "PointerEvent" in globalThis, workspaceFallback: "in-page-distraction-free" },
+        semanticTargets,
+        commandIds: editorCommands.map((command) => command.id),
       })),
     },
     {
@@ -273,14 +292,154 @@ export function createEstroSiteTools(service: ProjectService): ModelContextToolD
         } catch (error) { return visibleToolError(error, "Transaction could not be undone"); }
       },
     },
+    {
+      name: "inspect_document",
+      description: "Inspect the current image document, exact dimensions, resolution, background, stable ID, and project revision without changing project or workspace state.",
+      inputSchema: jsonSchema({ projectId: { type: "string", minLength: 1 } }, ["projectId"]),
+      annotations: { readOnlyHint: true },
+      execute: async (input) => {
+        try {
+          const parsed = projectIdSchema.parse(input);
+          const history = await service.getProjectHistory(parsed.projectId);
+          return toolResult({
+            ok: true, projectId: parsed.projectId, revisionId: history.headRevision.id,
+            document: history.headRevision.state.photoDocument ?? null,
+            hasDocument: Boolean(history.headRevision.state.photoDocument), projectChanged: false,
+          });
+        } catch (error) { return visibleToolError(error, "Document inspection failed"); }
+      },
+    },
+    {
+      name: "apply_document_operation",
+      description: "Create one empty non-destructive image document in a photo or unassigned project through Estro's shared revision and Undo engine.",
+      inputSchema: jsonSchema({
+        projectId: { type: "string", minLength: 1 },
+        expectedRevisionId: { type: "string", minLength: 1 },
+        widthPx: { type: "integer", minimum: 1, maximum: 32768 },
+        heightPx: { type: "integer", minimum: 1, maximum: 32768 },
+        resolutionPpi: { type: "number", minimum: 1, maximum: 2400 },
+        orientation: { enum: ["landscape", "portrait", "square"] },
+        background: { oneOf: [
+          jsonSchema({ type: { const: "transparent" } }, ["type"]),
+          jsonSchema({ type: { const: "solid" }, color: { type: "string", pattern: "^#[0-9a-fA-F]{6}$" } }, ["type", "color"]),
+        ] },
+      }, ["projectId", "expectedRevisionId", "widthPx", "heightPx", "resolutionPpi", "orientation", "background"]),
+      execute: async (input) => {
+        try {
+          const parsed = createPhotoDocumentInputSchema.parse(input);
+          webMcpActivityStore.show({ id: crypto.randomUUID(), stage: "committing", title: "Creating image document", detail: `Preparing ${parsed.widthPx} × ${parsed.heightPx} pixels.`, projectId: parsed.projectId });
+          const result = await service.createPhotoDocument(parsed, { actor, intent: "Create an empty image document through WebMCP." });
+          await service.waitForAutosave(result.project.id);
+          const payload = { ...resultForMutation(result), document: result.headRevision.state.photoDocument, durability: "durable", projectChanged: true };
+          webMcpActivityStore.show({ id: result.transaction.id, stage: "complete", title: result.transaction.summary, detail: `Document ${result.headRevision.state.photoDocument?.id} is ready.`, projectId: result.project.id, transactionId: result.transaction.id, undoProjectId: result.project.id });
+          return toolResult(payload);
+        } catch (error) { return visibleToolError(error, "Image document was not created"); }
+      },
+    },
+    {
+      name: "inspect_workspace",
+      description: "Inspect viewport, panels, overlays, active tool, selection, and supported input/fullscreen capabilities without changing the project.",
+      inputSchema: jsonSchema({ projectId: { type: "string", minLength: 1 } }, ["projectId"]),
+      annotations: { readOnlyHint: true },
+      execute: async (input) => {
+        try {
+          const parsed = projectIdSchema.parse(input);
+          const [workspace, history] = await Promise.all([workspaceService.getWorkspace(parsed.projectId), service.getProjectHistory(parsed.projectId)]);
+          return toolResult({ ok: true, projectId: parsed.projectId, revisionId: history.headRevision.id, workspace, projectChanged: false });
+        } catch (error) { return visibleToolError(error, "Workspace inspection failed"); }
+      },
+    },
+    {
+      name: "set_workspace",
+      description: "Set a validated viewport, panel size, panel dock, tool, overlay, or distraction-free preference without creating a project revision.",
+      inputSchema: jsonSchema({
+        projectId: { type: "string", minLength: 1 },
+        change: { oneOf: [
+          jsonSchema({ type: { const: "viewport" }, viewport: { type: "object" } }, ["type", "viewport"]),
+          jsonSchema({ type: { const: "panel" }, panel: { enum: ["left", "inspector"] }, open: { type: "boolean" }, widthPx: { type: "integer" } }, ["type", "panel"]),
+          jsonSchema({ type: { const: "dock" }, leadingPanel: { enum: ["left", "inspector"] } }, ["type", "leadingPanel"]),
+          jsonSchema({ type: { const: "tool" }, tool: { enum: ["select", "hand", "zoom"] } }, ["type", "tool"]),
+          jsonSchema({ type: { const: "overlay" }, overlay: { enum: ["rulers", "guides", "grid", "snapping", "safeAreas"] }, enabled: { type: "boolean" } }, ["type", "overlay", "enabled"]),
+          jsonSchema({ type: { const: "guide" }, action: { enum: ["add", "update", "remove", "clear"] }, guideId: { type: "string" }, axis: { enum: ["x", "y"] }, positionPx: { type: "number", minimum: -32768, maximum: 65536 } }, ["type", "action"]),
+          jsonSchema({ type: { const: "distraction_free" }, enabled: { type: "boolean" } }, ["type", "enabled"]),
+        ] },
+      }, ["projectId", "change"]),
+      execute: async (input) => {
+        try {
+          const parsed = workspaceInputSchema.parse(input);
+          const before = await service.getProjectHistory(parsed.projectId);
+          const workspace = await workspaceService.applyWorkspaceChange(parsed.projectId, parsed.change);
+          const after = await service.getProjectHistory(parsed.projectId);
+          return toolResult({ ok: true, projectId: parsed.projectId, revisionId: after.headRevision.id, workspace, projectChanged: false, revisionUnchanged: before.headRevision.id === after.headRevision.id, summary: "Updated the local editor workspace." });
+        } catch (error) { return visibleToolError(error, "Workspace preference was not changed"); }
+      },
+    },
+    {
+      name: "inspect_selection",
+      description: "Inspect the current stable canvas or document selection without changing it.",
+      inputSchema: jsonSchema({ projectId: { type: "string", minLength: 1 } }, ["projectId"]),
+      annotations: { readOnlyHint: true },
+      execute: async (input) => {
+        try {
+          const parsed = projectIdSchema.parse(input);
+          const [workspace, history] = await Promise.all([workspaceService.getWorkspace(parsed.projectId), service.getProjectHistory(parsed.projectId)]);
+          return toolResult({ ok: true, projectId: parsed.projectId, revisionId: history.headRevision.id, selection: workspace.selection, projectChanged: false });
+        } catch (error) { return visibleToolError(error, "Selection inspection failed"); }
+      },
+    },
+    {
+      name: "set_selection",
+      description: "Select the stable canvas or current document target without changing project content or revision history.",
+      inputSchema: jsonSchema({ projectId: { type: "string", minLength: 1 }, selectionType: { enum: ["none", "canvas", "document"] }, targetId: { type: ["string", "null"] } }, ["projectId", "selectionType", "targetId"]),
+      execute: async (input) => {
+        try {
+          const parsed = selectionInputSchema.parse(input);
+          const history = await service.getProjectHistory(parsed.projectId);
+          if (parsed.selectionType === "canvas" && parsed.targetId !== "canvas-stage") throw new ProjectError("INVALID_INPUT", "Canvas selection requires targetId canvas-stage.", { fieldPath: "targetId" });
+          if (parsed.selectionType === "document" && parsed.targetId !== history.headRevision.state.photoDocument?.id) throw new ProjectError("INVALID_INPUT", "Document selection requires the current stable document ID.", { fieldPath: "targetId" });
+          const workspace = await workspaceService.applyWorkspaceChange(parsed.projectId, { type: "selection", selectionType: parsed.selectionType, targetId: parsed.targetId });
+          return toolResult({ ok: true, projectId: parsed.projectId, revisionId: history.headRevision.id, selection: workspace.selection, projectChanged: false, summary: parsed.selectionType === "none" ? "Cleared the workspace selection." : `Selected ${parsed.selectionType} ${parsed.targetId}.` });
+        } catch (error) { return visibleToolError(error, "Selection was not changed"); }
+      },
+    },
+    {
+      name: "focus_ui",
+      description: "Reveal and focus one stable semantic editor control. This is navigation only and never changes project or workspace data.",
+      inputSchema: jsonSchema({ projectId: { type: "string", minLength: 1 }, targetId: { type: "string", enum: semanticTargets.map((target) => target.id) } }, ["projectId", "targetId"]),
+      execute: async (input) => {
+        try {
+          const parsed = focusInputSchema.parse(input);
+          const [history, workspace] = await Promise.all([service.getProjectHistory(parsed.projectId), workspaceService.getWorkspace(parsed.projectId)]);
+          const target = getSemanticTarget(parsed.targetId);
+          if (!target) throw new ProjectError("INVALID_INPUT", "Use a semantic target ID returned by get_capabilities or search_commands.", { fieldPath: "targetId" });
+          if (parsed.targetId === "document-canvas" && !history.headRevision.state.photoDocument) throw new ProjectError("INVALID_INPUT", "Create an image document before focusing the document canvas.", { fieldPath: "targetId" });
+          const request = focusStore.request(parsed.projectId, target.id, "webmcp");
+          webMcpActivityStore.show({ id: request.id, stage: "targeting", title: `Focusing ${target.label}`, detail: `Revealing semantic target ${target.id}.`, projectId: parsed.projectId });
+          return toolResult({ ok: true, projectId: parsed.projectId, revisionId: history.headRevision.id, target, focusRequestId: request.id, selection: workspace.selection, projectChanged: false, summary: `Requested focus for ${target.label}.` });
+        } catch (error) { return visibleToolError(error, "Editor target could not be focused"); }
+      },
+    },
+    {
+      name: "search_commands",
+      description: "Search the current Phase 2 command and feature index by name, category, shortcut, or keyword without changing state.",
+      inputSchema: jsonSchema({ query: { type: "string", maxLength: 120, default: "" } }),
+      annotations: { readOnlyHint: true },
+      execute: async (input) => {
+        try {
+          const parsed = searchCommandsSchema.parse(input);
+          const results = searchEditorCommands(parsed.query);
+          return toolResult({ ok: true, query: parsed.query, totalCommands: editorCommands.length, resultCount: results.length, results, projectChanged: false });
+        } catch (error) { return visibleToolError(error, "Command search needs valid input"); }
+      },
+    },
   ];
 }
 
 const registeredContexts = new WeakSet<object>();
 
-export function registerEstroSiteTools(service: ProjectService, modelContext: ModelContextApi | undefined = document.modelContext): number {
+export function registerEstroSiteTools(service: ProjectService, workspaceService: WorkspaceService, modelContext: ModelContextApi | undefined = document.modelContext): number {
   if (!modelContext?.registerTool || registeredContexts.has(modelContext)) return 0;
-  const tools = createEstroSiteTools(service);
+  const tools = createEstroSiteTools(service, workspaceService);
   tools.forEach((tool) => modelContext.registerTool?.(tool));
   registeredContexts.add(modelContext);
   return tools.length;

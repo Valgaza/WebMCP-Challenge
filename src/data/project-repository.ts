@@ -441,6 +441,7 @@ export class ProjectRepository {
       storedState.name !== replayedState.name ||
       storedState.kind !== replayedState.kind ||
       storedState.status !== replayedState.status ||
+      JSON.stringify(storedState.photoDocument) !== JSON.stringify(replayedState.photoDocument) ||
       project.name !== replayedState.name ||
       project.kind !== replayedState.kind ||
       project.status !== replayedState.status ||

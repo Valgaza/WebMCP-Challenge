@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { ProjectError } from "./project-error";
 import { projectKindSchema, projectNameSchema, projectStatusSchema } from "./project";
+import { photoDocumentSchema } from "./photo-document";
 
 export const HISTORY_SCHEMA_VERSION = 1 as const;
 
@@ -8,6 +9,7 @@ export const projectStateSchema = z.object({
   name: projectNameSchema,
   kind: projectKindSchema,
   status: projectStatusSchema,
+  photoDocument: photoDocumentSchema.nullable().optional(),
 });
 
 export type ProjectState = z.infer<typeof projectStateSchema>;
@@ -60,6 +62,18 @@ export const restoreProjectOperationSchema = operationBaseSchema.extend({
   toState: projectStateSchema,
 });
 
+export const createPhotoDocumentOperationSchema = operationBaseSchema.extend({
+  type: z.literal("document.create"),
+  fromKind: z.enum(["photo", "unassigned"]),
+  document: photoDocumentSchema,
+});
+
+export const removePhotoDocumentOperationSchema = operationBaseSchema.extend({
+  type: z.literal("document.remove"),
+  restoreKind: z.enum(["photo", "unassigned"]),
+  document: photoDocumentSchema,
+});
+
 export const projectOperationSchema = z.discriminatedUnion("type", [
   createProjectOperationSchema,
   duplicateProjectOperationSchema,
@@ -68,6 +82,8 @@ export const projectOperationSchema = z.discriminatedUnion("type", [
   snapshotProjectOperationSchema,
   removeSnapshotProjectOperationSchema,
   restoreProjectOperationSchema,
+  createPhotoDocumentOperationSchema,
+  removePhotoDocumentOperationSchema,
 ]);
 
 export type ProjectOperation = z.infer<typeof projectOperationSchema>;
@@ -158,11 +174,31 @@ export function applyProjectOperations(
       continue;
     }
 
+    if (operation.type === "document.create") {
+      if (state.photoDocument != null) {
+        throw new ProjectError("HISTORY_CONFLICT", "This project already has an image document.");
+      }
+      if (state.kind !== operation.fromKind) {
+        throw new ProjectError("HISTORY_CONFLICT", "The project type changed before the image document could be created.");
+      }
+      state = projectStateSchema.parse({ ...state, kind: "photo", photoDocument: operation.document });
+      continue;
+    }
+
+    if (operation.type === "document.remove") {
+      if (state.photoDocument?.id !== operation.document.id) {
+        throw new ProjectError("HISTORY_CONFLICT", "The image document changed before this operation could be undone.");
+      }
+      state = projectStateSchema.parse({ ...state, kind: operation.restoreKind, photoDocument: null });
+      continue;
+    }
+
     if (operation.type === "project.restore") {
       if (
         state.name !== operation.fromState.name ||
         state.kind !== operation.fromState.kind ||
-        state.status !== operation.fromState.status
+        state.status !== operation.fromState.status ||
+        state.photoDocument?.id !== operation.fromState.photoDocument?.id
       ) {
         throw new ProjectError(
           "HISTORY_CONFLICT",
@@ -225,6 +261,24 @@ export function invertProjectOperations(
         id: createOperationId(),
         fromState: operation.toState,
         toState: operation.fromState,
+      });
+    }
+
+    if (operation.type === "document.create") {
+      return removePhotoDocumentOperationSchema.parse({
+        ...operation,
+        id: createOperationId(),
+        type: "document.remove",
+        restoreKind: operation.fromKind,
+      });
+    }
+
+    if (operation.type === "document.remove") {
+      return createPhotoDocumentOperationSchema.parse({
+        ...operation,
+        id: createOperationId(),
+        type: "document.create",
+        fromKind: operation.restoreKind,
       });
     }
 
