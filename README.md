@@ -2,7 +2,7 @@
 
 Estro is a local-first browser photo and video editor designed for direct, collaborative, teaching, and autonomous WebMCP workflows.
 
-Phase 1 is complete and user-verified. Phase 2 is implemented and locally verified, with final project-owner container and manual acceptance still required. Together they establish the local project and transaction foundation plus an empty image document, persistent editor shell, canvas navigation, contextual panels, keyboard and pointer input, guides and overlays, semantic selection/focus, command search, and 15 top-level Site tools using the same non-destructive state paths.
+Phases 1 and 2 are complete and user-verified. Together they establish the local project and transaction foundation plus an empty image document, persistent editor shell, canvas navigation, contextual panels, keyboard and pointer input, guides and overlays, semantic selection/focus, command search, and 15 top-level Site tools using the same non-destructive state paths.
 
 ## Development environment
 

@@ -81,4 +81,4 @@ Final acceptance was reported complete on 2026-09-02: all 10 test files and 37 t
 
 ## Repository and approval state
 
-All project files remain untracked. No commit, push, branch creation, deployment, upload, API-key change, external service configuration, dependency change, or agent-run Docker command was performed.
+Phase 1 was later committed with the user's approval across `9b5c0b6`, `6b4fd95`, `d36910f`, `20b22c6`, and `c7f491a`. No push, branch creation, deployment, upload, API-key change, external service configuration, dependency change, or agent-run Docker command was performed.

@@ -1,8 +1,8 @@
 # Estro Phase 2 Handoff
 
-**Phase:** 2 — Editor shell and interaction foundation  
-**Sequence:** 17–29  
-**Status:** Implementation complete · final user container and manual acceptance required  
+**Phase:** 2 — Editor shell and interaction foundation
+**Sequence:** 17–29
+**Status:** Complete · user-verified 2026-09-02
 **Date:** 2026-09-02
 
 ## Demonstrable result
@@ -51,7 +51,7 @@ npm run build
 Current result:
 
 - TypeScript: pass.
-- Vitest: 12 files, 52 tests, all pass.
+- Vitest: 12 files, 52 tests, all pass. (Now 53 tests after the post-acceptance correction recorded below.)
 - Production build: pass; 1,949 modules transformed.
 - Vite reports one non-blocking warning because the main minified JavaScript chunk is about 553 kB before gzip. Phase 2 does not introduce speculative code splitting; later route/worker boundaries can address this when the plan reaches them.
 - `git diff --check`: pass.
@@ -73,27 +73,21 @@ The local Phase 2 demonstration completed at desktop, 820px, and 390px widths wi
 9. Confirmed one compact drawer at a time, access to both drawer toggles at 390px, Escape returning to the canvas, and the narrow-workspace advisory.
 10. Reset the temporary browser viewport and stopped the local Vite server.
 
-The real Fullscreen API path was not forced in automation because browser fullscreen permission and chrome vary by host. The verified in-page fallback is the required capability-safe path. The user should exercise native fullscreen once during final manual acceptance.
+The real Fullscreen API path was not forced in automation because browser fullscreen permission and chrome vary by host. The verified in-page fallback is the required capability-safe path. Native fullscreen was covered by the user's manual acceptance below.
 
-## Final user action required
+## User acceptance completed
 
-- **Action required:** Run the project-owned container verification and the short manual exit demonstration.
-- **Why:** Project rules prohibit the agent from running Docker, and Phase 2 cannot be marked user-verified until the approved container runtime and native browser fullscreen path are confirmed.
-- **Exact steps:** From the repository root, run:
+The user ran the containerized verification and the manual exit demonstration, then confirmed Phase 2 tested and reviewed on 2026-09-02. Phase 2 is closed.
 
-  ```sh
-  docker compose run --rm app npm run typecheck
-  docker compose run --rm app npm run test:run
-  docker compose run --rm app npm run build
-  docker compose up --build
-  ```
+## Post-acceptance correction
 
-  Then open `http://localhost:5173`, create an unassigned/photo project and a 1920×1080 transparent document, try Hand drag and `+`, `-`, `0`, `1`, `R`, Ctrl/Cmd+K, Ctrl/Cmd+Z, Redo, panel resize/swap, grid/guides, compact drawer toggling, WebMCP inspection/focus, and native distraction-free fullscreen.
-- **Expected result:** 12 test files and 52 tests pass, the build succeeds with only the documented chunk-size warning, the UI and WebMCP paths show the same stable document state, workspace actions do not add project revisions, Undo/Redo round-trip the document, and fullscreen or its explicit in-page fallback exits cleanly.
-- **Return to the agent:** The three command summaries and any failed interaction, with secrets removed.
-- **Risk or side effect:** Compose creates or reuses the project dependency volume and starts only local development services. It does not migrate external data or upload media.
+Live WebMCP testing against the running application exercised all fifteen tools and found one defect, corrected after acceptance:
+
+- `manage_project` returned two different result shapes. `rename` and `snapshot` routed through `resultForMutation`, while `create`, `duplicate`, `save_as`, and `save` returned a reduced four-key payload with no `transactionId`, `undoToken`, `affectedIds`, or `warnings`. The transaction existed in the new project's history; the adapter simply did not surface it, so an agent received no transaction identity and the Activity Center offered no Undo affordance. This contradicted `SH-071`.
+- `create`, `duplicate`, and `save_as` now recover and report their initiating transaction. `save` promotes durability rather than committing a revision, so it explicitly returns `transactionId: null` and `undoAvailable: false` instead of omitting the fields.
+- Covered by a new `site-tools` test asserting transaction identity for every project-creating operation. The suite is now 12 files and 53 tests.
 
 ## Repository and approval state
 
-The worktree contains the uncommitted Phase 2 implementation and the user's existing Phase 1 files. No commit, push, branch operation, Docker command, deployment, upload, external service, credential, production dependency change, or canonical feature-scope/order change was performed.
+Phase 2 was committed as `49c483f` with the user's approval. No push, branch operation, agent-run Docker command, deployment, upload, external service, credential, production dependency change, or canonical feature-scope/order change was performed.
 

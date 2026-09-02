@@ -168,6 +168,8 @@ Every implementation phase follows the same product loop. A phase does not begin
 
 ### Phase 2 — Editor shell and interaction foundation (17–29)
 
+**Status:** Complete · user-verified 2026-09-02
+
 - **Depends on:** Phase 1 project state, command handling, inspection, validation, and transaction identity.
 - **Establishes:** The first renderable document, canvas coordinate system, inspector and shell composition, semantic control contract, focus model, input abstraction, guides, preview navigation, and agent-to-UI focus bridge.
 - **Exit condition:** An empty image document is operable and inspectable through pointer, keyboard, and WebMCP interactions, with stable focus and semantic controls.

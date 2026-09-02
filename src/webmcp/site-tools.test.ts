@@ -53,6 +53,34 @@ describe("Estro Site tools", () => {
     await expect(service.getProject(project.id)).resolves.toMatchObject({ name: "Anniversary film", headRevisionId: project.headRevisionId });
   });
 
+  it("returns transaction identity for every project-creating operation", async () => {
+    const tools = createEstroSiteTools(service, workspaceService);
+    const manage = tools.find((tool) => tool.name === "manage_project")!;
+    const inspectTransaction = tools.find((tool) => tool.name === "inspect_transaction")!;
+
+    const created = await manage.execute({ operation: "create", name: "Ledger" }) as { structuredContent: Record<string, unknown> };
+    const projectId = created.structuredContent.projectId as string;
+    const duplicated = await manage.execute({ operation: "duplicate", projectId }) as { structuredContent: Record<string, unknown> };
+    const savedAs = await manage.execute({ operation: "save_as", projectId, name: "Ledger archive" }) as { structuredContent: Record<string, unknown> };
+
+    for (const result of [created, duplicated, savedAs]) {
+      expect(result.structuredContent).toMatchObject({ ok: true, undoAvailable: false, undoToken: null });
+      expect(result.structuredContent.transactionId).toEqual(expect.any(String));
+      expect(result.structuredContent.affectedIds).toEqual(expect.arrayContaining([result.structuredContent.projectId]));
+      expect(result.structuredContent.warnings).toEqual([]);
+    }
+
+    // The reported transaction must be the one that actually committed the new identity.
+    const inspected = await inspectTransaction.execute({ transactionId: created.structuredContent.transactionId }) as { structuredContent: Record<string, unknown> };
+    expect(inspected.structuredContent).toMatchObject({
+      ok: true, projectId, resultingRevisionId: created.structuredContent.resultingRevisionId,
+    });
+
+    // Save promotes durability rather than committing a revision, so it reports no transaction.
+    const saved = await manage.execute({ operation: "save", projectId }) as { structuredContent: Record<string, unknown> };
+    expect(saved.structuredContent).toMatchObject({ ok: true, transactionId: null, undoToken: null, undoAvailable: false, durability: "durable" });
+  });
+
   it("routes WebMCP rename through the same deterministic command and gates deletion", async () => {
     const project = await service.createProject({ name: "Draft", kind: "video" });
     const manage = createEstroSiteTools(service, workspaceService).find((tool) => tool.name === "manage_project")!;

@@ -1,5 +1,6 @@
 import { z } from "zod";
 import type { ProjectService } from "../application/project-service";
+import type { ProjectRecord } from "../domain/project";
 import type { WorkspaceService } from "../application/workspace-service";
 import { ProjectError, toProjectError } from "../domain/project-error";
 import { proposedOperationSchema } from "../domain/project-persistence";
@@ -102,6 +103,29 @@ function resultForMutation(result: Awaited<ReturnType<ProjectService["renameProj
   };
 }
 
+/**
+ * A new project identity is committed with its own initiating transaction, but the lifecycle
+ * service returns only the project record. Recover that transaction so create, duplicate, and
+ * Save As report the same transaction identity, affected IDs, and warnings as every other
+ * mutation instead of a reduced payload.
+ */
+async function resultForProjectCreation(service: ProjectService, project: ProjectRecord, summary: string) {
+  const history = await service.getProjectHistory(project.id);
+  const transaction = history.transactions.find((entry) => entry.resultingRevisionId === project.headRevisionId) ?? null;
+  return {
+    ok: true,
+    projectId: project.id,
+    transactionId: transaction?.id ?? null,
+    undoToken: transaction?.undoable ? transaction.id : null,
+    resultingRevisionId: project.headRevisionId,
+    affectedIds: transaction?.affectedIds ?? [project.id],
+    normalizedParameters: {},
+    warnings: transaction?.warnings ?? [],
+    summary,
+    undoAvailable: transaction?.undoable ?? false,
+  };
+}
+
 export function createEstroSiteTools(service: ProjectService, workspaceService: WorkspaceService): ModelContextToolDefinition[] {
   const execute = (stage: Parameters<typeof webMcpActivityStore.show>[0]["stage"], title: string, detail: string, task: () => Promise<Record<string, unknown>>) =>
     async () => {
@@ -197,22 +221,29 @@ export function createEstroSiteTools(service: ProjectService, workspaceService: 
           let payload: Record<string, unknown>;
           if (parsed.operation === "create") {
             const project = await service.createProject({ name: parsed.name, kind: "unassigned" }, { actor });
-            payload = { ok: true, projectId: project.id, resultingRevisionId: project.headRevisionId, summary: `Created “${project.name}”.` };
+            payload = await resultForProjectCreation(service, project, `Created “${project.name}”.`);
           } else if (parsed.operation === "rename") {
             const result = await service.renameProject({ projectId: parsed.projectId, name: parsed.name }, { actor });
             await service.waitForAutosave(result.project.id);
             payload = { ...resultForMutation(result), durability: "durable" };
           } else if (parsed.operation === "duplicate") {
             const project = await service.duplicateProject(parsed.projectId, { actor });
-            payload = { ok: true, projectId: project.id, resultingRevisionId: project.headRevisionId, summary: `Created “${project.name}” as a separate project.` };
+            payload = await resultForProjectCreation(service, project, `Created “${project.name}” as a separate project.`);
           } else if (parsed.operation === "save_as") {
             const project = await service.saveProjectAs(parsed.projectId, parsed.name, { actor });
-            payload = { ok: true, projectId: project.id, resultingRevisionId: project.headRevisionId, summary: `Saved a separate project as “${project.name}”.` };
+            payload = await resultForProjectCreation(service, project, `Saved a separate project as “${project.name}”.`);
           } else if (parsed.operation === "snapshot") {
             payload = resultForMutation(await service.createSnapshot(parsed.projectId, parsed.name, { actor }));
           } else {
+            // Save promotes durability rather than committing a revision, so it has no transaction.
+            // State that explicitly instead of omitting the fields every other mutation returns.
             const durability = await service.saveProject(parsed.projectId);
-            payload = { ok: true, projectId: parsed.projectId, resultingRevisionId: durability.durableRevisionId, summary: "Saved the current project revision." };
+            payload = {
+              ok: true, projectId: parsed.projectId, transactionId: null, undoToken: null,
+              resultingRevisionId: durability.durableRevisionId, affectedIds: [parsed.projectId],
+              normalizedParameters: {}, warnings: [], summary: "Saved the current project revision.",
+              undoAvailable: false, durability: "durable",
+            };
           }
           webMcpActivityStore.show({ id: activityId, stage: "complete", title: payload.summary as string, detail: "The result is durable and inspectable.", projectId: payload.projectId as string, transactionId: payload.transactionId as string | undefined, undoProjectId: payload.undoAvailable ? payload.projectId as string : undefined });
           return toolResult(payload);
