@@ -11,6 +11,8 @@ import {
 import type { ResampleAlgorithm } from "../workers/worker-protocol";
 import { count } from "../domain/plural";
 
+export type GeometryPart = "transform" | "crop" | "align" | "document";
+
 interface GeometryPanelProps {
   documentWidthPx: number;
   documentHeightPx: number;
@@ -37,6 +39,14 @@ interface GeometryPanelProps {
     options: { anchor: CanvasAnchor; resampleAlgorithm: ResampleAlgorithm; lockAspect: boolean },
   ) => void;
   agentTarget?: string | null;
+  /**
+   * Which of the four areas to draw.
+   *
+   * All four used to arrive together inside one "Position and size" group, so opening it
+   * produced 1,180px of controls — transform, crop, alignment and canvas resize at once. They
+   * are four separate jobs and they are now four separate groups.
+   */
+  part: GeometryPart;
 }
 
 const ALIGN_ACTIONS: { edge: AlignEdge; label: string; Icon: typeof AlignStartHorizontal }[] = [
@@ -64,7 +74,7 @@ const RESAMPLE_LABELS: Record<ResampleAlgorithm, string> = {
 export function GeometryPanel({
   documentWidthPx, documentHeightPx, selectedLayerIds, selectedLayer, sourceWidthPx, sourceHeightPx,
   disabled, workerAvailable, onAlign, onDistribute, onTransform, onCrop, onCropRatio, onFit,
-  onResetTransform, onRotateQuarter, onFlip, onResize, agentTarget,
+  onResetTransform, onRotateQuarter, onFlip, onResize, agentTarget, part,
 }: GeometryPanelProps) {
   const [width, setWidth] = useState(String(documentWidthPx));
   const [height, setHeight] = useState(String(documentHeightPx));
@@ -88,8 +98,8 @@ export function GeometryPanel({
   const transform = selectedLayer?.transform ?? null;
   const crop = selectedLayer?.crop ?? null;
 
-  return (
-    <>
+  if (part === "transform") {
+    return (
       <section data-semantic-id="inspector-transform" tabIndex={-1} data-agent-target={agentTarget === "inspector-transform" ? "true" : undefined}>
         <h3>Transform</h3>
         {!selectedLayer ? (
@@ -184,8 +194,12 @@ export function GeometryPanel({
           </>
         )}
       </section>
+    );
+  }
 
-      {selectedLayer && crop ? (
+  if (part === "crop") {
+    if (!selectedLayer || !crop) return null;
+    return (
         <section data-semantic-id="inspector-crop" tabIndex={-1} data-agent-target={agentTarget === "inspector-crop" ? "true" : undefined}>
           <h3>Crop</h3>
           <p className="field-help">
@@ -228,8 +242,11 @@ export function GeometryPanel({
             <Crop aria-hidden="true" size={15} /> Clear crop
           </button>
         </section>
-      ) : null}
+    );
+  }
 
+  if (part === "align") {
+    return (
       <section data-semantic-id="inspector-align" tabIndex={-1} data-agent-target={agentTarget === "inspector-align" ? "true" : undefined}>
         <h3>Align and distribute</h3>
         <label className="slider-field">
@@ -276,7 +293,10 @@ export function GeometryPanel({
           </button>
         </div>
       </section>
+    );
+  }
 
+  return (
       <section>
         <h3>Document size</h3>
         <div className="size-fields">
@@ -354,6 +374,5 @@ export function GeometryPanel({
           <Scaling aria-hidden="true" size={15} /> Apply size
         </button>
       </section>
-    </>
   );
 }

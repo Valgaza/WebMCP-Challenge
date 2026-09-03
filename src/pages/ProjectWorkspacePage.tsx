@@ -809,10 +809,18 @@ export function ProjectWorkspace({ service = projectService, workspaceApi = defa
     ? assetRecords.find((record) => record.id === selectedImageLayer.assetId) ?? null
     : null;
 
+  /*
+   * Two groups open, not four.
+   *
+   * Splitting "Position and size" into transform, crop, alignment and canvas size would
+   * otherwise have opened all four at once for a selected image and put the panel back where
+   * it started. Only the two that answer the question you usually have start open.
+   */
   const sectionDefaults: Record<string, boolean> = {
     geometry: Boolean(selectedImageLayer),
     colour: Boolean(selectedImageLayer),
     document: !selectedImageLayer,
+    "canvas-size": !selectedImageLayer,
   };
 
   const isSectionOpen = (id: string) => openSections[id] ?? sectionDefaults[id] ?? false;
@@ -1271,8 +1279,10 @@ export function ProjectWorkspace({ service = projectService, workspaceApi = defa
 
           <div className="inspector-groups">
             {documentState && projectId ? (
+              <>
               <InspectorSection id="geometry" title="Position and size" open={isSectionOpen("geometry")} onToggle={(next) => toggleSection("geometry", next)}>
                 <GeometryPanel
+                  part="transform"
                   documentWidthPx={documentState.widthPx}
                   documentHeightPx={documentState.heightPx}
                   selectedLayerIds={selectedLayerIds}
@@ -1294,6 +1304,79 @@ export function ProjectWorkspace({ service = projectService, workspaceApi = defa
                   onResize={(mode, w, h, options) => void resizeDocument(mode, w, h, options)}
                 />
               </InspectorSection>
+              <InspectorSection id="crop" title="Crop" open={isSectionOpen("crop")} onToggle={(next) => toggleSection("crop", next)}>
+                <GeometryPanel
+                  part="crop"
+                  documentWidthPx={documentState.widthPx}
+                  documentHeightPx={documentState.heightPx}
+                  selectedLayerIds={selectedLayerIds}
+                  selectedLayer={selectedImageLayer}
+                  sourceWidthPx={selectedAssetSource?.reference.widthPx ?? null}
+                  sourceHeightPx={selectedAssetSource?.reference.heightPx ?? null}
+                  disabled={Boolean(selectedImageLayer?.locked)}
+                  workerAvailable={assetApi.workerAvailable}
+                  agentTarget={agentTarget}
+                  onAlign={(edge: AlignEdge, reference: AlignReference, keyLayerId) => void runLayerOperation({ operation: "align", layerIds: selectedLayerIds, edge, reference, keyLayerId })}
+                  onDistribute={(axis) => void runLayerOperation({ operation: "distribute", layerIds: selectedLayerIds, axis })}
+                  onTransform={(patch) => selectedImageLayer && void runLayerOperation({ operation: "transform", layerId: selectedImageLayer.id, transform: patch })}
+                  onCrop={(crop) => selectedImageLayer && void runLayerOperation({ operation: "crop", layerId: selectedImageLayer.id, crop })}
+                  onCropRatio={(ratio) => { setCropRatio(ratio); if (selectedImageLayer) void runLayerOperation({ operation: "set_crop_ratio", layerId: selectedImageLayer.id, ratio }); }}
+                  onFit={(mode) => selectedImageLayer && void runLayerOperation({ operation: "fit", layerId: selectedImageLayer.id, mode })}
+                  onResetTransform={() => selectedImageLayer && void runLayerOperation({ operation: "reset_transform", layerId: selectedImageLayer.id })}
+                  onRotateQuarter={(turns) => selectedImageLayer && void runLayerOperation({ operation: "rotate_quarter", layerId: selectedImageLayer.id, turns })}
+                  onFlip={(axis) => selectedImageLayer && void runLayerOperation({ operation: "flip", layerId: selectedImageLayer.id, axis })}
+                  onResize={(mode, w, h, options) => void resizeDocument(mode, w, h, options)}
+                />
+              </InspectorSection>
+              <InspectorSection id="align" title="Align and distribute" open={isSectionOpen("align")} onToggle={(next) => toggleSection("align", next)}>
+                <GeometryPanel
+                  part="align"
+                  documentWidthPx={documentState.widthPx}
+                  documentHeightPx={documentState.heightPx}
+                  selectedLayerIds={selectedLayerIds}
+                  selectedLayer={selectedImageLayer}
+                  sourceWidthPx={selectedAssetSource?.reference.widthPx ?? null}
+                  sourceHeightPx={selectedAssetSource?.reference.heightPx ?? null}
+                  disabled={Boolean(selectedImageLayer?.locked)}
+                  workerAvailable={assetApi.workerAvailable}
+                  agentTarget={agentTarget}
+                  onAlign={(edge: AlignEdge, reference: AlignReference, keyLayerId) => void runLayerOperation({ operation: "align", layerIds: selectedLayerIds, edge, reference, keyLayerId })}
+                  onDistribute={(axis) => void runLayerOperation({ operation: "distribute", layerIds: selectedLayerIds, axis })}
+                  onTransform={(patch) => selectedImageLayer && void runLayerOperation({ operation: "transform", layerId: selectedImageLayer.id, transform: patch })}
+                  onCrop={(crop) => selectedImageLayer && void runLayerOperation({ operation: "crop", layerId: selectedImageLayer.id, crop })}
+                  onCropRatio={(ratio) => { setCropRatio(ratio); if (selectedImageLayer) void runLayerOperation({ operation: "set_crop_ratio", layerId: selectedImageLayer.id, ratio }); }}
+                  onFit={(mode) => selectedImageLayer && void runLayerOperation({ operation: "fit", layerId: selectedImageLayer.id, mode })}
+                  onResetTransform={() => selectedImageLayer && void runLayerOperation({ operation: "reset_transform", layerId: selectedImageLayer.id })}
+                  onRotateQuarter={(turns) => selectedImageLayer && void runLayerOperation({ operation: "rotate_quarter", layerId: selectedImageLayer.id, turns })}
+                  onFlip={(axis) => selectedImageLayer && void runLayerOperation({ operation: "flip", layerId: selectedImageLayer.id, axis })}
+                  onResize={(mode, w, h, options) => void resizeDocument(mode, w, h, options)}
+                />
+              </InspectorSection>
+              <InspectorSection id="canvas-size" title="Canvas size" open={isSectionOpen("canvas-size")} onToggle={(next) => toggleSection("canvas-size", next)}>
+                <GeometryPanel
+                  part="document"
+                  documentWidthPx={documentState.widthPx}
+                  documentHeightPx={documentState.heightPx}
+                  selectedLayerIds={selectedLayerIds}
+                  selectedLayer={selectedImageLayer}
+                  sourceWidthPx={selectedAssetSource?.reference.widthPx ?? null}
+                  sourceHeightPx={selectedAssetSource?.reference.heightPx ?? null}
+                  disabled={Boolean(selectedImageLayer?.locked)}
+                  workerAvailable={assetApi.workerAvailable}
+                  agentTarget={agentTarget}
+                  onAlign={(edge: AlignEdge, reference: AlignReference, keyLayerId) => void runLayerOperation({ operation: "align", layerIds: selectedLayerIds, edge, reference, keyLayerId })}
+                  onDistribute={(axis) => void runLayerOperation({ operation: "distribute", layerIds: selectedLayerIds, axis })}
+                  onTransform={(patch) => selectedImageLayer && void runLayerOperation({ operation: "transform", layerId: selectedImageLayer.id, transform: patch })}
+                  onCrop={(crop) => selectedImageLayer && void runLayerOperation({ operation: "crop", layerId: selectedImageLayer.id, crop })}
+                  onCropRatio={(ratio) => { setCropRatio(ratio); if (selectedImageLayer) void runLayerOperation({ operation: "set_crop_ratio", layerId: selectedImageLayer.id, ratio }); }}
+                  onFit={(mode) => selectedImageLayer && void runLayerOperation({ operation: "fit", layerId: selectedImageLayer.id, mode })}
+                  onResetTransform={() => selectedImageLayer && void runLayerOperation({ operation: "reset_transform", layerId: selectedImageLayer.id })}
+                  onRotateQuarter={(turns) => selectedImageLayer && void runLayerOperation({ operation: "rotate_quarter", layerId: selectedImageLayer.id, turns })}
+                  onFlip={(axis) => selectedImageLayer && void runLayerOperation({ operation: "flip", layerId: selectedImageLayer.id, axis })}
+                  onResize={(mode, w, h, options) => void resizeDocument(mode, w, h, options)}
+                />
+              </InspectorSection>
+              </>
             ) : null}
 
             {selectedImageLayer && projectId ? (

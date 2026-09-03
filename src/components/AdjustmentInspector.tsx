@@ -3,6 +3,7 @@ import { AlertTriangle } from "lucide-react";
 import { ADJUSTMENT_RANGES, describeAdjustment, type AdjustmentName } from "../domain/adjustment";
 import type { ImageLayer } from "../domain/layer";
 import type { RenderService } from "../application/render-service";
+import { FieldHelp } from "./ui/FieldHelp";
 
 interface AdjustmentInspectorProps {
   projectId: string;
@@ -91,14 +92,19 @@ export function AdjustmentInspector({
           const value = layer.adjustments[name];
           return (
             <label key={name} className="slider-field" data-semantic-id={`inspector-${name}`}>
-              <span>{range.label} <output>{value}</output></span>
+              <span>
+                <span className="slider-field__label">
+                  {range.label}
+                  <FieldHelp subject={range.label} id={`${name}-help`}>{describeAdjustment(name, value)}</FieldHelp>
+                </span>
+                <output>{value}</output>
+              </span>
               <input
                 type="range" min={range.min} max={range.max} step={1} disabled={disabled}
                 value={value}
                 aria-describedby={`${name}-help`}
                 onChange={(event) => onAdjust(name, Number(event.target.value))}
               />
-              <small id={`${name}-help`} className="field-help">{describeAdjustment(name, value)}</small>
             </label>
           );
         })}

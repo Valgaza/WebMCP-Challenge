@@ -26,6 +26,23 @@ describe("stylesheet tokens", () => {
     expect(undefinedTokens).toEqual([]);
   });
 
+  /*
+   * Removing one selector from a group leaves the group without a body.
+   *
+   * Deleting `.workspace-identity span { … }` from the end of a four-selector list left
+   * `.storage-line svg,` followed by a closing brace. jsdom parsed it, the dev server served
+   * it, and 928 tests passed; only the production minifier refused it. A trailing comma before
+   * a brace is never valid, so it is worth one regex.
+   */
+  it("never leaves a selector list without a body", () => {
+    const dangling = css
+      .split("\n")
+      .map((line, index) => ({ line: line.trim(), number: index + 1 }))
+      .filter(({ line }, index, all) => line === "}" && all[index - 1]?.line.endsWith(","))
+      .map(({ number }) => number);
+    expect(dangling).toEqual([]);
+  });
+
   it("keeps every declared custom property in use", () => {
     const referenced = referencedTokens();
     /* Tokens read from JavaScript rather than from another rule. */

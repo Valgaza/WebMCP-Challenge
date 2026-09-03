@@ -91,6 +91,7 @@
    * height; only page-level and dialog buttons are taller.
    */
   --bar-h: 52px;         /* the header row, previously a literal in three shells */
+  --control-h-sm: 26px;  /* Inspector fields, where a number needs three characters */
   --control-h: 32px;     /* anything in a bar */
   --control-h-lg: 40px;  /* page and dialog buttons, landing calls to action */
 
@@ -2777,6 +2778,9 @@ dialog {
   .save-state,
   .detail-success svg,
   .storage-line svg,
+  .workspace-save {
+    color: CanvasText;
+  }
 }
 
 /* ---------------------------------------------------------------------------
@@ -3307,6 +3311,155 @@ dialog {
 .proposal-losses li { display: flex; gap: 6px; align-items: start; }
 
 .media-storage { color: var(--text-tertiary); font-size: var(--text-2xs); }
+
+/*
+ * The Inspector at its real density.
+ *
+ * A 304px column was drawing 40px-tall inputs to hold three characters, each with its label
+ * stacked above it, so "Position and size" alone ran past the fold. With two of seventeen
+ * groups open the panel was 3,309px of scroll — 4.7 screens — holding 172 controls.
+ *
+ * Nothing is removed here. The rows are simply the size of what they contain: a field is the
+ * height of one line of text plus its padding, and a label sits beside its control rather than
+ * above it wherever the column is wide enough to hold both.
+ */
+.editor-inspector .size-fields {
+  gap: 6px 8px;
+  margin-block-end: 8px;
+}
+
+/*
+ * A label beside its field, not above it.
+ *
+ * Every numeric field cost two rows: a caption line, then a control. Six of them —
+ * X, Y, Scale X, Scale Y, Anchor X, Anchor Y — filled the panel before Crop had started. The
+ * caption shrinks and the field keeps a usable minimum, so a long one like "Scale X %" gives
+ * way rather than wrapping.
+ */
+.editor-inspector .size-fields label {
+  flex-direction: row;
+  align-items: center;
+  gap: 6px;
+}
+
+.editor-inspector .size-fields label > span {
+  flex: 0 1 auto;
+  min-inline-size: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.editor-inspector .size-fields label > input { flex: 1 1 46px; min-inline-size: 46px; text-align: end; }
+
+.editor-inspector .size-fields span,
+.editor-inspector .slider-field > span {
+  color: var(--text-tertiary);
+  font-size: var(--text-2xs);
+  font-weight: var(--weight-medium);
+}
+
+.editor-inspector .size-fields input,
+.editor-inspector .slider-field select,
+.editor-inspector .select-field,
+.editor-inspector .text-field {
+  min-height: var(--control-h-sm);
+  height: var(--control-h-sm);
+  padding-block: 0;
+  padding-inline: 7px;
+  font-size: var(--text-xs);
+  font-variant-numeric: tabular-nums;
+}
+
+.editor-inspector .slider-field {
+  gap: 3px;
+  margin-block-end: 8px;
+}
+
+.editor-inspector .slider-field input[type="range"] { block-size: 14px; }
+
+/* The label and its explanation mark travel together, with the readout pushed to the end. */
+.slider-field__label { display: inline-flex; align-items: center; gap: 4px; min-inline-size: 0; }
+
+/* An action row is a row of actions, not a stack of full-width bars. */
+.editor-inspector .inspector-actions { gap: 4px; }
+
+.editor-inspector .inspector-actions .button,
+.editor-inspector .button {
+  min-height: var(--control-h);
+  padding-inline: 10px;
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
+}
+
+.editor-inspector .icon-button {
+  inline-size: var(--control-h);
+  min-height: var(--control-h);
+  height: var(--control-h);
+}
+
+.editor-inspector .checkbox-field { gap: 6px; font-size: var(--text-2xs); }
+.editor-inspector .color-field input { inline-size: 40px; block-size: var(--control-h-sm); }
+
+.editor-inspector .inspector-section__body { gap: 10px; }
+.editor-inspector .inspector-section__body h3 { margin-block: 2px; }
+
+.field-help-host {
+  position: relative;
+  display: inline-flex;
+  vertical-align: middle;
+}
+
+.field-help-trigger {
+  display: grid;
+  place-items: center;
+  inline-size: 15px;
+  block-size: 15px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-round);
+  background: transparent;
+  color: var(--text-tertiary);
+  cursor: help;
+}
+
+.field-help-trigger:hover { background: var(--surface-3); color: var(--text-primary); }
+
+.field-help-bubble {
+  position: absolute;
+  z-index: 60;
+  inset-block-start: calc(100% + 5px);
+  /*
+   * Opens rightwards from the mark.
+   *
+   * Right-aligning it to a 15px trigger sent a 232px bubble off the left edge of a 304px
+   * panel, and the panel scrolls, so it was clipped rather than merely overhanging. The marks
+   * sit beside labels at the start of the column, so there is room in the other direction.
+   */
+  inset-inline-start: 0;
+  width: max-content;
+  max-width: 216px;
+  padding: 6px 8px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--surface-3);
+  box-shadow: 0 6px 16px oklch(0 0 0 / 0.34);
+  color: var(--text-secondary);
+  font-size: var(--text-2xs);
+  font-weight: var(--weight-normal);
+  line-height: 1.4;
+  text-align: start;
+  /*
+   * Opacity, not visibility: the field points here with `aria-describedby`, and a description
+   * a screen reader cannot reach is not a description.
+   */
+  opacity: 0;
+  transition: opacity var(--duration-fast) var(--ease);
+  pointer-events: none;
+}
+
+.field-help-host:hover .field-help-bubble,
+.field-help-host:has(:focus-visible) .field-help-bubble { opacity: 1; }
 
 /* -------------------------------- inspector ---------------------------------- */
 
