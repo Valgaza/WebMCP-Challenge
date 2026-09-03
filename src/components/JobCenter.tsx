@@ -3,6 +3,7 @@ import { AlertTriangle, ListChecks, RotateCcw, X } from "lucide-react";
 import { JOB_STATUS_LABELS, isTerminalJobStatus, summarizeJob, type JobRecord } from "../domain/job";
 import type { JobService } from "../application/job-service";
 import { count } from "../domain/plural";
+import { Tooltip } from "./ui/Tooltip";
 
 interface JobCenterProps {
   projectId: string;
@@ -34,26 +35,30 @@ export function JobCenter({ projectId, jobService, onStatus, onRevealOutput, age
   const running = jobs.filter((job) => !isTerminalJobStatus(job.status));
   const needsAttention = jobs.filter((job) => job.status === "failed" || job.status === "interrupted");
 
+  const jobCenterLabel = running.length
+    ? `Job Center, ${running.length} running${needsAttention.length ? `, ${needsAttention.length} needing attention` : ""}`
+    : needsAttention.length
+      ? `Job Center, ${needsAttention.length} needing attention`
+      : "Job Center";
+
   return (
     <>
-      <button
-        className="icon-button job-center-trigger"
-        type="button"
-        data-semantic-id="job-center"
-        data-agent-target={agentTarget === "job-center" ? "true" : undefined}
-        aria-label={
-          running.length
-            ? `Job Center, ${running.length} running${needsAttention.length ? `, ${needsAttention.length} needing attention` : ""}`
-            : needsAttention.length ? `Job Center, ${needsAttention.length} needing attention` : "Job Center"
-        }
-        aria-expanded={open}
-        aria-controls="job-center-drawer"
-        onClick={() => setOpen((value) => !value)}
-      >
-        <ListChecks aria-hidden="true" size={17} />
-        {running.length ? <span className="job-center-trigger__count">{running.length}</span> : null}
-        {!running.length && needsAttention.length ? <span className="job-center-trigger__count job-center-trigger__count--warn">!</span> : null}
-      </button>
+      <Tooltip label={jobCenterLabel}>
+        <button
+          className="icon-button job-center-trigger"
+          type="button"
+          data-semantic-id="job-center"
+          data-agent-target={agentTarget === "job-center" ? "true" : undefined}
+          aria-label={jobCenterLabel}
+          aria-expanded={open}
+          aria-controls="job-center-drawer"
+          onClick={() => setOpen((value) => !value)}
+        >
+          <ListChecks aria-hidden="true" size={16} />
+          {running.length ? <span className="job-center-trigger__count">{running.length}</span> : null}
+          {!running.length && needsAttention.length ? <span className="job-center-trigger__count job-center-trigger__count--warn">!</span> : null}
+        </button>
+      </Tooltip>
 
       {open ? (
         <section id="job-center-drawer" className="job-center" aria-label="Job Center">

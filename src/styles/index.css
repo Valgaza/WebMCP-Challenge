@@ -128,27 +128,88 @@
   z-index: 30;
   grid-column: 1 / -1;
   grid-row: 1;
-  display: grid;
   /*
-   * One column per child, and `grid-auto-flow: column` so a child added later lands beside
-   * its siblings rather than on an implicit second row. Six children against five columns
-   * put the view actions on row two, 48px down and 6px from the left, on top of the tool
-   * rail and the Layers tab.
+   * Two regions, not six explicitly sized tracks.
    *
-   * The title is the only flexible column because it is the only one that can lose
-   * characters gracefully; it already truncates with an ellipsis. Giving it a floor of
-   * 148px made it refuse to shrink and pushed the overflow onto its siblings instead.
+   * `grid-auto-flow: column` against `40px minmax(0, 1fr) auto auto auto auto` needed one
+   * track per child and a restatement in three media queries, and the comment above it
+   * recorded what happens when the counts disagree: a sixth child dropped onto an implicit
+   * second row, 48px down, on top of the tool rail. Flex has no count to get wrong.
    */
-  grid-auto-flow: column;
-  grid-template-columns: 40px minmax(0, 1fr) auto auto auto auto;
+  display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 12px;
   min-width: 0;
-  padding-inline: 6px 10px;
+  padding-inline: 8px 10px;
   border-block-end: 1px solid var(--border-subtle);
   background: color-mix(in oklch, var(--surface-1) 96%, transparent);
   backdrop-filter: blur(16px);
 }
+
+.editor-bar__start {
+  display: flex;
+  flex: 0 1 auto;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.editor-bar__end {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 10px;
+  margin-inline-start: auto;
+}
+
+/* Controls that belong together sit together, with the gaps doing the grouping. */
+.editor-bar__group {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+/*
+ * One decision, one control.
+ *
+ * Save and "save as" were a button and a bare chevron standing side by side, which reads as
+ * two unrelated controls, one of them unlabelled.
+ */
+.split-button {
+  display: flex;
+  align-items: center;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--surface-2);
+}
+
+.split-button > .button {
+  border: 0;
+  border-radius: 0;
+  border-start-start-radius: var(--radius-md);
+  border-end-start-radius: var(--radius-md);
+  background: transparent;
+}
+
+.split-button .tooltip-host > .icon-button {
+  border: 0;
+  border-radius: 0;
+  border-start-end-radius: var(--radius-md);
+  border-end-end-radius: var(--radius-md);
+  border-inline-start: 1px solid var(--border-subtle);
+}
+
+/* Every control in this bar is the bar's height, whatever kind of control it is. */
+.editor-top-bar .button,
+.editor-top-bar .icon-button,
+.editor-top-bar .command-trigger,
+.editor-top-bar .webmcp-chip {
+  min-height: var(--control-h);
+  height: var(--control-h);
+}
+
+.editor-top-bar .icon-button { inline-size: var(--control-h); }
+.editor-top-bar .icon-button--tight { inline-size: 26px; }
 
 .editor-identity {
   min-width: 0;
@@ -171,9 +232,39 @@
   white-space: nowrap;
 }
 
+/*
+ * The save state was never styled at all.
+ *
+ * `.workspace-save` had one rule, a 1px top margin; every other declaration for it lived in a
+ * `.workspace-identity` block whose markup was deleted with the video panels. So it inherited
+ * the root's 16px and rendered *larger than the project name it belongs to* — a 16px line
+ * reading "Revision 10 saved locally" under a 14px `h1`, which is the wrong way round for a
+ * heading and its metadata.
+ */
 .editor-identity .workspace-save {
-  margin-block-start: 1px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  overflow: hidden;
+  color: var(--text-tertiary);
+  font-size: var(--text-xs);
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
+
+.editor-identity .workspace-save svg { flex: none; }
+.editor-identity .workspace-save--saved svg { color: var(--success); }
+.editor-identity .workspace-save--failed { color: var(--danger); }
+.editor-identity .workspace-save--autosaving,
+.editor-identity .workspace-save--draft { color: var(--warning); }
+
+/*
+ * The heading takes focus on load so a screen reader announces the project, and it cannot be
+ * reached by Tab — so a ring around it points at nothing anybody can act on. The person who
+ * asked for rings everywhere still gets one.
+ */
+.editor-identity h1:focus-visible { outline: none; }
+:root[data-focus="always"] .editor-identity h1:focus-visible { outline: 2px solid var(--focus); }
 
 /*
  * A merged selector group, and a real bug rather than a tidy-up.
@@ -185,7 +276,6 @@
  * the visible casualty: zoom, quality, and the Program/Source switch came out as three
  * stacked rows floating over the picture.
  */
-.editor-top-actions,
 .editor-view-actions,
 .context-action-bar,
 .inspector-actions {
@@ -219,7 +309,6 @@
   gap: 4px;
 }
 
-.editor-top-actions .button,
 .context-action-bar .button {
   min-height: 32px;
   padding-inline: 10px;
@@ -255,24 +344,6 @@ kbd {
   font-family: ui-monospace, "SFMono-Regular", Menlo, Monaco, Consolas, monospace; font-size: var(--text-2xs); line-height: 1.4;
 }
 
-.activity-island {
-  justify-self: center;
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  min-height: 32px;
-  min-width: 0;
-  padding-inline: 12px;
-  border: 1px solid transparent;
-  border-radius: var(--radius-round);
-  background: linear-gradient(var(--surface-2), var(--surface-2)) padding-box,
-    linear-gradient(90deg, var(--agent-a), var(--agent-b)) border-box;
-  font-size: var(--text-xs);
-  font-weight: var(--weight-strong);
-}
-
-.activity-island svg { color: var(--agent-a); }
-.activity-island span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 .editor-tool-rail {
   z-index: 10;
@@ -287,11 +358,14 @@ kbd {
   background: var(--surface-1);
 }
 
+/* The rail's children are tooltip wrappers now, so they carry the button's footprint. */
+.editor-tool-rail .tooltip-host { flex: none; }
+
 .editor-tool {
   display: grid;
   place-items: center;
-  width: 40px;
-  min-height: 40px;
+  width: 36px;
+  height: 36px;
   border: 1px solid transparent;
   border-radius: var(--radius-md);
   background: transparent;
@@ -301,7 +375,6 @@ kbd {
   transition-duration: var(--duration-fast);
 }
 
-.editor-tool span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); }
 .editor-tool:hover { background: var(--surface-2); color: var(--text-primary); }
 .editor-tool[aria-pressed="true"] { border-color: color-mix(in oklch, var(--accent) 45%, var(--border-subtle)); background: color-mix(in oklch, var(--accent) 16%, var(--surface-2)); color: var(--accent-hover); }
 
@@ -683,8 +756,14 @@ kbd {
 
 .editor-shell--distraction-free { grid-template-columns: 0 0 minmax(0, 1fr) 0; grid-template-rows: 0 minmax(0, 1fr); }
 .editor-shell--distraction-free .editor-top-bar { position: fixed; z-index: 30; inset-block-start: 8px; inset-inline-end: 8px; display: block; width: 40px; height: 40px; padding: 0; border: 0; background: transparent; }
-.editor-shell--distraction-free .editor-top-bar > :not(.editor-view-actions), .editor-shell--distraction-free .editor-view-actions > :not(:last-child), .editor-shell--distraction-free .editor-tool-rail, .editor-shell--distraction-free .editor-left-panel, .editor-shell--distraction-free .editor-inspector, .editor-shell--distraction-free .context-action-bar { display: none; }
-.editor-shell--distraction-free .editor-view-actions { display: block; }
+.editor-shell--distraction-free .editor-bar__start,
+.editor-shell--distraction-free .editor-bar__end > :not(.editor-view-actions),
+.editor-shell--distraction-free .editor-view-actions > :not(:last-child),
+.editor-shell--distraction-free .editor-tool-rail,
+.editor-shell--distraction-free .editor-left-panel,
+.editor-shell--distraction-free .editor-inspector,
+.editor-shell--distraction-free .context-action-bar { display: none; }
+.editor-shell--distraction-free .editor-bar__end { margin: 0; }
 .editor-shell--distraction-free .editor-center { grid-column: 1 / -1; grid-row: 1 / -1; }
 
 @media (max-width: 1179px) {
@@ -695,15 +774,21 @@ kbd {
   .editor-shell--inspector-leading .editor-inspector { inset-inline: 48px auto; width: var(--leading-panel-width); box-shadow: 12px 0 30px oklch(0 0 0 / 0.36); }
   .editor-shell--inspector-leading .editor-left-panel { inset-inline: auto 0; width: var(--trailing-panel-width); box-shadow: -12px 0 30px oklch(0 0 0 / 0.36); }
   .editor-center { grid-column: 2 / -1; }
-  /* The activity island is hidden here, leaving five children. */
-  .editor-top-bar { grid-template-columns: 40px minmax(0, 1fr) auto auto auto; }
-  .activity-island { display: none; }
+  /* The Search trigger keeps its glyph; the word and the shortcut move to its tooltip. */
+  .command-trigger span,
+  .command-trigger kbd { display: none; }
+  .command-trigger { padding-inline: 9px; }
 }
 
 @media (max-width: 899px) {
-  /* The editing actions go too, leaving four. */
-  .editor-top-bar { grid-template-columns: 40px minmax(0, 1fr) auto auto; }
-  .editor-top-actions { display: none; }
+  /*
+     Save keeps its glyph rather than leaving the bar.
+
+     Undo, Redo, Rename, Save and the command palette used to be deleted outright at this
+     width — `display: none` on the whole group — which is how a tablet lost every editing
+     action in the header at once and the command palette became unreachable by pointer. */
+  .editor-top-bar .split-button .button span { display: none; }
+  .editor-top-bar .split-button .button { padding-inline: 9px; }
   .editor-identity .workspace-save { max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .context-action-bar { inset-inline: 8px auto; transform: none; }
   .editor-recovery { align-items: flex-start; flex-direction: column; }
@@ -718,7 +803,7 @@ kbd {
   .editor-inspector { width: min(var(--trailing-panel-width), 90vw); }
   .editor-shell--inspector-leading .editor-inspector { inset-inline-start: 0; width: min(var(--leading-panel-width), 90vw); }
   .editor-shell--inspector-leading .editor-left-panel { width: min(var(--trailing-panel-width), 90vw); }
-  .editor-top-bar { grid-template-columns: 40px minmax(80px, 1fr) auto; }
+  .editor-top-bar { gap: 6px; padding-inline: 6px; }
   .canvas-empty { padding: 24px 18px; }
   .canvas-empty h2 { font-size: var(--text-xl); }
   .context-action-bar .button { min-width: 40px; padding-inline: 8px; }
@@ -739,7 +824,7 @@ kbd {
 
 @media (forced-colors: active) {
   .document-canvas[aria-pressed="true"], [data-agent-target="true"], .panel-resize-handle:focus-visible::after { outline: 2px solid Highlight !important; }
-  .activity-island, .context-action-bar, .command-trigger { border: 1px solid CanvasText; }
+  .webmcp-chip, .context-action-bar, .command-trigger { border: 1px solid CanvasText; }
 }
 
 * {
@@ -1800,85 +1885,6 @@ dialog {
   line-height: 1.5;
 }
 
-.workspace-foundation {
-  min-height: 100vh;
-  background: var(--canvas-backdrop);
-}
-
-.workspace-top-bar {
-  display: grid;
-  grid-template-columns: 40px minmax(0, 1fr) auto auto auto;
-  align-items: center;
-  gap: 12px;
-  min-height: var(--bar-h);
-  padding-inline: 12px 20px;
-  border-block-end: 1px solid var(--border-subtle);
-  background: var(--surface-1);
-}
-
-.workspace-identity {
-  min-width: 0;
-}
-
-.workspace-identity h1 {
-  display: block;
-  margin: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: var(--text-sm);
-}
-
-.workspace-identity span {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  color: var(--success);
-  font-size: var(--text-2xs);
-}
-
-.workspace-identity .workspace-save--draft,
-.workspace-identity .workspace-save--autosaving {
-  color: var(--warning);
-}
-
-.workspace-identity .workspace-save--failed {
-  color: var(--danger);
-}
-
-.workspace-save-controls {
-  display: flex;
-  align-items: center;
-  gap: 2px;
-}
-
-.workspace-save-controls .button {
-  min-height: 36px;
-  padding-inline: 10px;
-  font-size: var(--text-2xs);
-}
-
-.workspace-agent-status {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  padding: 7px 12px;
-  border: 1px solid color-mix(in oklch, var(--agent-a) 60%, var(--border-subtle));
-  border-radius: var(--radius-round);
-  color: var(--text-secondary);
-  font-size: var(--text-2xs);
-}
-
-.workspace-agent-status svg {
-  color: var(--agent-a);
-}
-
-.history-controls {
-  display: flex;
-  align-items: center;
-  gap: 2px;
-}
-
 .workspace-main {
   min-height: calc(100vh - var(--bar-h));
   padding: 32px;
@@ -2509,13 +2515,6 @@ dialog {
     max-height: none;
   }
 
-  .workspace-top-bar {
-    grid-template-columns: 40px minmax(0, 1fr) auto auto;
-  }
-
-  .workspace-agent-status {
-    display: none;
-  }
 }
 
 @media (max-width: 599px) {
@@ -2640,26 +2639,6 @@ dialog {
 
   .dialog__footer {
     padding-inline: 20px;
-  }
-
-  .workspace-agent-status {
-    display: none;
-  }
-
-  .workspace-top-bar {
-    grid-template-columns: 40px minmax(0, 1fr) auto;
-    padding-block: 6px;
-  }
-
-  .workspace-save-controls {
-    grid-column: 1 / -1;
-    grid-row: 2;
-    overflow-x: auto;
-  }
-
-  .history-controls {
-    grid-column: 3;
-    grid-row: 1;
   }
 
   .workspace-main {
@@ -2798,9 +2777,6 @@ dialog {
   .save-state,
   .detail-success svg,
   .storage-line svg,
-  .workspace-identity span {
-    color: CanvasText;
-  }
 }
 
 /* ---------------------------------------------------------------------------

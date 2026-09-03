@@ -1,10 +1,13 @@
 import {
-  ArrowLeft, BookmarkPlus, Check, ChevronDown, CloudOff, Command, Crop, Focus, Grid2X2, Grid3X3, Hand, ImagePlus,
+  ArrowLeft, ArrowLeftRight, BookmarkPlus, Check, ChevronDown, CloudOff, Command, Crop, Focus, Grid2X2, Grid3X3, Hand, ImagePlus,
   History, Layers3, Maximize2, Minimize2, MousePointer2, PanelLeft, PanelRight, Pencil,
-  Redo2, Ruler, Save, Shield, Sparkles, SplitSquareHorizontal, Undo2, ZoomIn,
+  Redo2, Ruler, Save, Shield, SplitSquareHorizontal, Undo2, ZoomIn,
 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type WheelEvent as ReactWheelEvent } from "react";
 import { Link, useParams } from "react-router-dom";
+import { IconButton } from "../components/ui/IconButton";
+import { Tooltip } from "../components/ui/Tooltip";
+import { WebMcpChip } from "../components/ui/WebMcpChip";
 import {
   assetService as defaultAssetService, jobService as defaultJobService,
   layerService as defaultLayerService, organizationService as defaultOrganizationService,
@@ -76,7 +79,6 @@ import type { EditorCommandId } from "../editor/editor-commands";
 import { getSemanticTarget } from "../editor/semantic-targets";
 import { focusStore } from "../webmcp/focus-store";
 import { getWebMcpAvailability } from "../webmcp/model-context";
-import { getRegisteredToolCount } from "../webmcp/site-tools";
 
 type ProjectWorkspaceService = ProjectLifecycleService & ProjectHistoryService & Partial<ProjectPersistenceService & ProjectAutomationService & PhotoDocumentService & ProjectObservationService>;
 type WorkspaceApi = Pick<WorkspaceService, "getWorkspace" | "applyWorkspaceChange" | "subscribe">;
@@ -478,10 +480,7 @@ export function ProjectWorkspace({ service = projectService, workspaceApi = defa
       case "tool.hand": setCropping(false); void applyWorkspaceChange({ type: "tool", tool: "hand" }, "Hand tool active."); return;
       case "tool.zoom": setCropping(false); void applyWorkspaceChange({ type: "tool", tool: "zoom" }, "Zoom tool active."); return;
       case "tool.crop":
-        if (!needsLayer()) return;
-        setCropping(true);
-        setCropDraft(selectedImageLayer!.crop);
-        setStatus("Crop tool active. Drag a handle, or set an exact crop in the Inspector.");
+        toggleCrop();
         return;
 
       /* media */
@@ -760,6 +759,44 @@ export function ProjectWorkspace({ service = projectService, workspaceApi = defa
   async function rejectProposal() { if (!proposal || !service.rejectProposal) return; setPendingAction("proposal-reject"); try { await service.rejectProposal(proposal.id); setProposal(null); setStatus("Proposal rejected. No project revision changed."); } finally { setPendingAction(null); } }
 
 
+  /*
+   * Crop, from either the button or the C key, with one definition of what it does.
+   *
+   * There were two: clicking flipped `cropping`, while `runCommand("tool.crop")` set it true,
+   * so the button toggled and the keyboard did not — pressing C twice left you in crop mode.
+   *
+   * The button was also `disabled` whenever no image layer was selected, with its explanation
+   * in a `title`. A disabled button fires no pointer events, so that explanation had never
+   * been shown to anyone, and the control read as broken rather than unavailable. It now
+   * answers: with one image in the document it selects it and starts, and otherwise it says
+   * what it needs.
+   */
+  function toggleCrop() {
+    if (cropping) {
+      setCropping(false);
+      setStatus("Crop cancelled.");
+      return;
+    }
+    if (selectedImageLayer) {
+      setCropping(true);
+      setCropDraft(selectedImageLayer.crop);
+      setStatus("Crop tool active. Drag a handle, or set an exact crop in the Inspector.");
+      return;
+    }
+    const images = flattenLayers(documentLayers).filter(({ layer }) => layer.kind === "image");
+    if (images.length === 1) {
+      const only = images[0].layer as ImageLayer;
+      setSelectedLayerIds([only.id]);
+      setCropping(true);
+      setCropDraft(only.crop);
+      setStatus(`Cropping ${only.name}, the only picture in this document.`);
+      return;
+    }
+    setStatus(images.length === 0
+      ? "There is no picture to crop yet. Import one from the Media panel first."
+      : "Choose which picture to crop by selecting its layer, then press C.");
+  }
+
   /* ------------------------------ derived state ------------------------------- */
 
   const project = history?.project ?? null;
@@ -871,35 +908,53 @@ export function ProjectWorkspace({ service = projectService, workspaceApi = defa
       <a className="skip-link" href="#canvas-stage">Skip to canvas</a>
 
       <header className="editor-top-bar">
-        <Link className="icon-button" to="/projects" aria-label="Back to projects"><ArrowLeft aria-hidden="true" size={18} /></Link>
-        <div className="editor-identity">
-          <h1 ref={workspaceHeadingRef} tabIndex={-1}>{project?.name ?? "Loading project…"}</h1>
-          {project ? (
-            <span className={`workspace-save workspace-save--${saveState}`}>
-              {saveState === "failed" ? <CloudOff aria-hidden="true" size={13} /> : <Check aria-hidden="true" size={13} />} {saveLabel}
-            </span>
-          ) : null}
+        <div className="editor-bar__start">
+          <Tooltip label="Back to projects">
+            <Link className="icon-button" to="/projects" aria-label="Back to projects"><ArrowLeft aria-hidden="true" size={16} /></Link>
+          </Tooltip>
+          <div className="editor-identity">
+            <h1 ref={workspaceHeadingRef} tabIndex={-1}>{project?.name ?? "Loading project…"}</h1>
+            {project ? (
+              <span className={`workspace-save workspace-save--${saveState}`}>
+                {saveState === "failed" ? <CloudOff aria-hidden="true" size={12} /> : <Check aria-hidden="true" size={12} />} {saveLabel}
+              </span>
+            ) : null}
+          </div>
         </div>
-        <div className="editor-top-actions" aria-label="Project and workspace actions">
-          <button className="button button--ghost" type="button" disabled={!service.saveProject || pendingAction !== null} onClick={() => void explicitSave()}><Save aria-hidden="true" size={15} /><span>Save</span></button>
-          <button className="icon-button" type="button" aria-label="Save as a new project" disabled={!service.saveProjectAs} onClick={() => setNameDialog("save-as")}><ChevronDown aria-hidden="true" size={17} /></button>
-          <button className="icon-button" type="button" aria-label="Rename project" onClick={() => setNameDialog("rename")}><Pencil aria-hidden="true" size={16} /></button>
-          <button className="icon-button" type="button" aria-label="Undo last project change" aria-keyshortcuts="Control+Z Meta+Z" disabled={!canUndo || pendingAction !== null} onClick={() => void changeHistory("undo")}><Undo2 aria-hidden="true" size={17} /></button>
-          <button className="icon-button" type="button" aria-label="Redo last undone project change" aria-keyshortcuts="Control+Shift+Z Meta+Shift+Z" disabled={!canRedo || pendingAction !== null} onClick={() => void changeHistory("redo")}><Redo2 aria-hidden="true" size={17} /></button>
-          <button className="command-trigger" data-semantic-id="command-palette-trigger" type="button" aria-keyshortcuts="Control+K Meta+K" onClick={() => setCommandPaletteOpen(true)}><Command aria-hidden="true" size={15} /> Search <kbd>⌘K</kbd></button>
-        </div>
-        {projectId ? <JobCenter projectId={projectId} jobService={jobApi} onStatus={setStatus} agentTarget={agentTarget} /> : null}
-        <div className="activity-island" data-semantic-id="activity-island" aria-label="WebMCP availability">
-          <Sparkles aria-hidden="true" size={15} />
-          <span>{webMcpReady ? `WebMCP ready · ${getRegisteredToolCount()} tools` : "Manual controls available"}</span>
-        </div>
-        <div className="editor-view-actions">
-          <button className="icon-button" type="button" aria-label="Toggle Layers panel" aria-pressed={currentWorkspace.panels.left.open} onClick={() => runCommand("workspace.left-panel")}><PanelLeft aria-hidden="true" size={17} /></button>
-          <button className="icon-button" type="button" aria-label="Toggle Inspector" aria-pressed={currentWorkspace.panels.inspector.open} onClick={() => runCommand("workspace.inspector")}><PanelRight aria-hidden="true" size={17} /></button>
-          <button className="icon-button" type="button" aria-label="Swap panel sides" onClick={() => runCommand("workspace.swap-docks")}><ArrowLeft aria-hidden="true" size={15} /><span className="sr-only">Swap</span></button>
-          <button className="icon-button" type="button" aria-label={currentWorkspace.distractionFree ? "Exit distraction-free preview" : "Enter distraction-free preview"} aria-pressed={currentWorkspace.distractionFree} onClick={() => void setDistractionFree(!currentWorkspace.distractionFree)}>
-            {currentWorkspace.distractionFree ? <Minimize2 aria-hidden="true" size={17} /> : <Maximize2 aria-hidden="true" size={17} />}
-          </button>
+
+        <div className="editor-bar__end" aria-label="Project and workspace actions">
+          {/*
+            * Save and Save-as are one control, because they were one decision.
+            * A lone chevron beside a button is the least readable thing in a toolbar.
+            */}
+          <div className="split-button">
+            <button className="button button--ghost" type="button" disabled={!service.saveProject || pendingAction !== null} onClick={() => void explicitSave()}><Save aria-hidden="true" size={14} /><span>Save</span></button>
+            <IconButton label="Save as a new project" icon={ChevronDown} size="sm" disabled={!service.saveProjectAs} onClick={() => setNameDialog("save-as")} />
+          </div>
+
+          <div className="editor-bar__group">
+            <IconButton label="Undo last project change" icon={Undo2} shortcut="⌘Z" disabled={!canUndo || pendingAction !== null} onClick={() => void changeHistory("undo")} />
+            <IconButton label="Redo last undone project change" icon={Redo2} shortcut="⇧⌘Z" disabled={!canRedo || pendingAction !== null} onClick={() => void changeHistory("redo")} />
+            <IconButton label="Rename project" icon={Pencil} onClick={() => setNameDialog("rename")} />
+          </div>
+
+          <button className="command-trigger" data-semantic-id="command-palette-trigger" type="button" aria-keyshortcuts="Control+K Meta+K" onClick={() => setCommandPaletteOpen(true)}><Command aria-hidden="true" size={14} /> <span>Search</span> <kbd>⌘K</kbd></button>
+
+          {projectId ? <JobCenter projectId={projectId} jobService={jobApi} onStatus={setStatus} agentTarget={agentTarget} /> : null}
+          <WebMcpChip available={webMcpReady} semanticId="activity-island" compact />
+
+          <div className="editor-bar__group editor-view-actions">
+            <IconButton label="Toggle Layers panel" icon={PanelLeft} pressed={currentWorkspace.panels.left.open} onClick={() => runCommand("workspace.left-panel")} />
+            <IconButton label="Toggle Inspector" icon={PanelRight} pressed={currentWorkspace.panels.inspector.open} onClick={() => runCommand("workspace.inspector")} />
+            {/* Not ArrowLeft: that is the back button's glyph, eight controls to the left. */}
+            <IconButton label="Swap panel sides" icon={ArrowLeftRight} onClick={() => runCommand("workspace.swap-docks")} />
+            <IconButton
+              label={currentWorkspace.distractionFree ? "Exit distraction-free preview" : "Enter distraction-free preview"}
+              icon={currentWorkspace.distractionFree ? Minimize2 : Maximize2}
+              pressed={currentWorkspace.distractionFree}
+              onClick={() => void setDistractionFree(!currentWorkspace.distractionFree)}
+            />
+          </div>
         </div>
       </header>
 
@@ -922,31 +977,35 @@ export function ProjectWorkspace({ service = projectService, workspaceApi = defa
       <p className="compact-workspace-advisory">A wider window gives more precise canvas control. Every action here stays available through the Inspector, the timeline menus, and the command search.</p>
 
       <nav className="editor-tool-rail" aria-label="Editor tools">
+        {/*
+          * Four tools from one list.
+          *
+          * Crop used to be written out by hand below this map, which is why it was the only
+          * one that could be disabled, the only one with a `title`, and the only one whose
+          * click and keyboard paths disagreed.
+          */}
         {([
           { id: "select", target: "tool-select", label: "Select", icon: MousePointer2, shortcut: "V" },
           { id: "hand", target: "tool-hand", label: "Hand", icon: Hand, shortcut: "H" },
           { id: "zoom", target: "tool-zoom", label: "Zoom", icon: ZoomIn, shortcut: "Z" },
+          { id: "crop", target: "tool-crop", label: "Crop", icon: Crop, shortcut: "C" },
         ] as const).map((tool) => (
-          <button
-            key={tool.id} className="editor-tool" data-semantic-id={tool.target}
-            data-agent-target={agentTarget === tool.target ? "true" : undefined}
-            type="button" aria-label={`${tool.label} tool (${tool.shortcut})`} aria-keyshortcuts={tool.shortcut}
-            aria-pressed={currentWorkspace.activeTool === tool.id && !cropping}
-            onClick={() => { setCropping(false); void applyWorkspaceChange({ type: "tool", tool: tool.id }, `${tool.label} tool active.`); }}
-          >
-            <tool.icon aria-hidden="true" size={18} /><span>{tool.label}</span>
-          </button>
+          <Tooltip key={tool.id} label={`${tool.label} tool`} shortcut={tool.shortcut} placement="inline-end">
+            <button
+              className="editor-tool" data-semantic-id={tool.target}
+              data-agent-target={agentTarget === tool.target ? "true" : undefined}
+              type="button" aria-label={`${tool.label} tool (${tool.shortcut})`} aria-keyshortcuts={tool.shortcut}
+              aria-pressed={tool.id === "crop" ? cropping : currentWorkspace.activeTool === tool.id && !cropping}
+              onClick={() => {
+                if (tool.id === "crop") { toggleCrop(); return; }
+                setCropping(false);
+                void applyWorkspaceChange({ type: "tool", tool: tool.id }, `${tool.label} tool active.`);
+              }}
+            >
+              <tool.icon aria-hidden="true" size={17} />
+            </button>
+          </Tooltip>
         ))}
-        <button
-          className="editor-tool" data-semantic-id="tool-crop"
-          data-agent-target={agentTarget === "tool-crop" ? "true" : undefined}
-          type="button" aria-label="Crop tool (C)" aria-keyshortcuts="C" aria-pressed={cropping}
-          disabled={!selectedImageLayer}
-          title={selectedImageLayer ? undefined : "Select an image layer to crop it"}
-          onClick={() => { setCropping((value) => !value); setCropDraft(selectedImageLayer?.crop ?? null); }}
-        >
-          <Crop aria-hidden="true" size={18} /><span>Crop</span>
-        </button>
       </nav>
 
       {currentWorkspace.panels.left.open ? (
