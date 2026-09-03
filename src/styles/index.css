@@ -56,6 +56,32 @@
   --text-xl: 20px;    /* dialog and section titles */
   --text-2xl: 28px;   /* page titles */
 
+  /*
+   * A radius scale, for the same reason there is a type scale.
+   *
+   * This sheet held 106 corner radii across 16 values: 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12,
+   * 50%, 999px and two keywords. Nobody can see the difference between a 5px corner and a 6px
+   * one, or between 9px and 10px, so those steps bought no hierarchy — they only guaranteed
+   * that the search field (7px), the buttons (6px) and the WebMCP pill (999px) would never
+   * agree with each other in the same 52px bar. Five steps replace fifteen.
+   *
+   * 50% and the histogram bar's 1px stay literal: a circle is not a rounded rectangle, and a
+   * 3px corner on a 3px-wide bar is a lozenge.
+   */
+  --radius-xs: 3px;      /* dots, handles, thin bars */
+  --radius-sm: 4px;      /* chips, tabs, rows inside a tray */
+  --radius-md: 6px;      /* the default: buttons, inputs, icon buttons */
+  --radius-lg: 8px;      /* panels, cards, banners, trays */
+  --radius-xl: 12px;     /* dialogs and floating surfaces */
+  --radius-round: 999px; /* pills */
+
+  /*
+   * One easing curve and one duration, replacing the same cubic-bezier typed into three
+   * separate rule blocks and `130ms` typed into six.
+   */
+  --ease: cubic-bezier(0.2, 0, 0, 1);
+  --duration-fast: 130ms;
+
   --weight-normal: 400;
   --weight-medium: 550;
   --weight-strong: 650;
@@ -77,7 +103,7 @@
 
 .editor-shell--loading { color: var(--text-tertiary); }
 .editor-shell--loading .editor-left-panel, .editor-shell--loading .editor-inspector { display: grid; align-content: start; gap: 12px; padding: 16px 12px; }
-.loading-block { display: block; border-radius: 5px; background: var(--surface-3); opacity: 0.68; }
+.loading-block { display: block; border-radius: var(--radius-sm); background: var(--surface-3); opacity: 0.68; }
 .loading-block--back, .loading-block--tool { width: 32px; height: 32px; }
 .loading-block--title { width: min(220px, 40vw); height: 14px; }
 .loading-block--panel-title { width: 42%; height: 14px; margin-block: 8px; }
@@ -160,7 +186,7 @@
 .history-snapshots { padding-block-end: 10px; border-block-end: 1px solid var(--border-subtle); }
 .history-snapshots h3 { margin: 0 0 6px; color: var(--text-secondary); font-size: var(--text-2xs); font-weight: var(--weight-strong); text-transform: uppercase; letter-spacing: 0.04em; }
 .history-snapshots ul { display: flex; flex-direction: column; gap: 4px; margin: 0; padding: 0; list-style: none; }
-.history-snapshots li { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 5px 7px; border-radius: 5px; background: var(--surface-2); }
+.history-snapshots li { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 5px 7px; border-radius: var(--radius-sm); background: var(--surface-2); }
 .history-snapshots li > div { display: flex; flex-direction: column; min-inline-size: 0; }
 .history-snapshots strong { overflow: hidden; font-size: var(--text-sm); text-overflow: ellipsis; white-space: nowrap; }
 .history-snapshots small { color: var(--text-tertiary); font-size: var(--text-2xs); }
@@ -171,7 +197,7 @@
  * A refused revert explains itself in place. Naming the changes that block it is the whole
  * point: the alternative is a button that fails without saying why.
  */
-.history-entry__conflict { margin-block-start: 6px; padding: 7px 9px; border: 1px solid color-mix(in oklch, var(--danger) 40%, var(--border-subtle)); border-radius: 6px; background: color-mix(in oklch, var(--danger) 7%, transparent); }
+.history-entry__conflict { margin-block-start: 6px; padding: 7px 9px; border: 1px solid color-mix(in oklch, var(--danger) 40%, var(--border-subtle)); border-radius: var(--radius-md); background: color-mix(in oklch, var(--danger) 7%, transparent); }
 .history-entry__conflict ul { margin: 5px 0 0; padding-inline-start: 16px; color: var(--text-secondary); font-size: var(--text-xs); }
 .history-entry__conflict li { margin-block-end: 2px; }
 
@@ -194,13 +220,13 @@
   min-height: 32px;
   padding-inline: 10px;
   border: 1px solid var(--border-subtle);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   background: var(--surface-2);
   color: var(--text-secondary);
   font-size: var(--text-xs);
   cursor: pointer;
   transition-property: background-color, border-color, color, transform;
-  transition-duration: 130ms;
+  transition-duration: var(--duration-fast);
 }
 
 .command-trigger:hover {
@@ -210,7 +236,7 @@
 
 kbd {
   border: 1px solid var(--border-subtle);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   padding: 1px 5px;
   background: var(--app-bg);
   color: var(--text-tertiary);
@@ -226,7 +252,7 @@ kbd {
   min-width: 0;
   padding-inline: 12px;
   border: 1px solid transparent;
-  border-radius: 999px;
+  border-radius: var(--radius-round);
   background: linear-gradient(var(--surface-2), var(--surface-2)) padding-box,
     linear-gradient(90deg, var(--agent-a), var(--agent-b)) border-box;
   font-size: var(--text-xs);
@@ -255,12 +281,12 @@ kbd {
   width: 40px;
   min-height: 40px;
   border: 1px solid transparent;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   background: transparent;
   color: var(--text-tertiary);
   cursor: pointer;
   transition-property: background-color, border-color, color, transform;
-  transition-duration: 130ms;
+  transition-duration: var(--duration-fast);
 }
 
 .editor-tool span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); }
@@ -302,7 +328,7 @@ kbd {
   min-height: 32px;
   padding-inline: 4px;
   border: 0;
-  border-radius: 5px;
+  border-radius: var(--radius-sm);
   background: transparent;
   color: var(--text-tertiary);
   font-size: var(--text-xs);
@@ -329,7 +355,7 @@ kbd {
   justify-items: start;
   gap: 8px;
   padding: 20px 12px;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   background: var(--surface-2);
   color: var(--text-secondary);
   font-size: var(--text-sm);
@@ -347,7 +373,7 @@ kbd {
   min-height: 56px;
   padding: 6px;
   border: 1px solid transparent;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   background: transparent;
   color: var(--text-primary);
   text-align: start;
@@ -363,7 +389,7 @@ kbd {
   width: 34px;
   height: 30px;
   border: 1px solid var(--border-subtle);
-  border-radius: 5px;
+  border-radius: var(--radius-sm);
   background: var(--surface-3);
   color: var(--text-tertiary);
 }
@@ -412,7 +438,7 @@ kbd {
  * and wrapping keeps every control visible rather than clipped away or hidden behind a
  * scroll nobody would think to look for.
  */
-.context-action-bar { position: absolute; z-index: 8; inset-block-start: 8px; inset-inline-start: 50%; inline-size: max-content; max-inline-size: calc(100% - 16px); min-height: 40px; padding: 4px; flex-wrap: wrap; justify-content: center; row-gap: 4px; border: 1px solid var(--border-subtle); border-radius: 8px; background: color-mix(in oklch, var(--surface-1) 94%, transparent); box-shadow: 0 8px 22px oklch(0 0 0 / 0.24); transform: translateX(-50%); backdrop-filter: blur(12px); }
+.context-action-bar { position: absolute; z-index: 8; inset-block-start: 8px; inset-inline-start: 50%; inline-size: max-content; max-inline-size: calc(100% - 16px); min-height: 40px; padding: 4px; flex-wrap: wrap; justify-content: center; row-gap: 4px; border: 1px solid var(--border-subtle); border-radius: var(--radius-lg); background: color-mix(in oklch, var(--surface-1) 94%, transparent); box-shadow: 0 8px 22px oklch(0 0 0 / 0.24); transform: translateX(-50%); backdrop-filter: blur(12px); }
 /* A control keeps its own width and moves to the next row instead of being squeezed. */
 .context-action-bar > * { flex: 0 0 auto; }
 .zoom-output { min-width: 54px; padding-inline: 8px; color: var(--text-secondary); font-family: ui-monospace, monospace; font-size: var(--text-xs); line-height: 32px; text-align: center; }
@@ -432,19 +458,19 @@ kbd {
   width: min(430px, calc(100% - 40px));
   padding: 32px;
   border: 1px solid var(--border-subtle);
-  border-radius: 10px;
+  border-radius: var(--radius-xl);
   background: var(--surface-1);
   text-align: center;
   transform: translate(-50%, -50%);
 }
 
-.canvas-empty__glyph { display: grid; place-items: center; width: 56px; height: 56px; margin-block-end: 16px; border-radius: 10px; background: var(--surface-2); color: var(--accent); }
+.canvas-empty__glyph { display: grid; place-items: center; width: 56px; height: 56px; margin-block-end: 16px; border-radius: var(--radius-xl); background: var(--surface-2); color: var(--accent); }
 .canvas-empty h2 { margin: 4px 0 8px; font-size: var(--text-xl); }
 .canvas-empty > p:not(.eyebrow) { max-width: 48ch; margin: 0 0 20px; color: var(--text-secondary); font-size: var(--text-base); line-height: 1.5; }
 .canvas-empty .field-error { margin-block-start: 12px; }
 
 .canvas-selection-target { position: absolute; z-index: 0; inset: 0; width: 100%; height: 100%; border: 0; background: transparent; cursor: inherit; }
-.document-canvas { position: absolute; z-index: 2; inset-block-start: 50%; inset-inline-start: 50%; display: block; min-width: 1px; min-height: 1px; padding: 0; border: 1px solid oklch(1 0 0 / 0.16); border-radius: 0; box-shadow: 0 18px 48px oklch(0 0 0 / 0.46); transform-origin: center; cursor: default; transition-property: box-shadow; transition-duration: 130ms; }
+.document-canvas { position: absolute; z-index: 2; inset-block-start: 50%; inset-inline-start: 50%; display: block; min-width: 1px; min-height: 1px; padding: 0; border: 1px solid oklch(1 0 0 / 0.16); border-radius: 0; box-shadow: 0 18px 48px oklch(0 0 0 / 0.46); transform-origin: center; cursor: default; transition-property: box-shadow; transition-duration: var(--duration-fast); }
 .document-canvas[aria-pressed="true"] { box-shadow: 0 0 0 2px var(--accent), 0 18px 48px oklch(0 0 0 / 0.46); }
 .document-canvas--transparent { background-color: oklch(0.78 0 0); background-image: linear-gradient(45deg, oklch(0.66 0 0) 25%, transparent 25%, transparent 75%, oklch(0.66 0 0) 75%), linear-gradient(45deg, oklch(0.66 0 0) 25%, transparent 25%, transparent 75%, oklch(0.66 0 0) 75%); background-position: 0 0, 16px 16px; background-size: 32px 32px; }
 .document-grid { position: absolute; inset: 0; background-image: linear-gradient(to right, color-mix(in oklch, var(--accent) 24%, transparent) 1px, transparent 1px), linear-gradient(to bottom, color-mix(in oklch, var(--accent) 24%, transparent) 1px, transparent 1px); pointer-events: none; }
@@ -503,7 +529,7 @@ kbd {
   min-height: 32px;
   padding-inline: 6px;
   border: 0;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   background: transparent;
   color: var(--text-secondary);
   font-size: inherit;
@@ -511,7 +537,7 @@ kbd {
   text-align: start;
   cursor: pointer;
   transition-property: background-color, color;
-  transition-duration: 130ms;
+  transition-duration: var(--duration-fast);
 }
 
 .inspector-section__toggle:hover { background: var(--surface-2); color: var(--text-primary); }
@@ -521,7 +547,7 @@ kbd {
   flex: none;
   color: var(--text-tertiary);
   transition-property: rotate;
-  transition-duration: 130ms;
+  transition-duration: var(--duration-fast);
 }
 
 .inspector-section__toggle[aria-expanded="true"] .inspector-section__chevron { rotate: 90deg; }
@@ -554,7 +580,7 @@ kbd {
   font-weight: var(--weight-medium);
 }
 .property-list { display: grid; gap: 2px; margin: 0; }
-.property-list > div { display: grid; grid-template-columns: minmax(84px, 1fr) minmax(0, 1.2fr); gap: 8px; align-items: center; min-height: 34px; padding-inline: 8px; border-radius: 5px; }
+.property-list > div { display: grid; grid-template-columns: minmax(84px, 1fr) minmax(0, 1.2fr); gap: 8px; align-items: center; min-height: 34px; padding-inline: 8px; border-radius: var(--radius-sm); }
 .property-list > div:nth-child(odd) { background: color-mix(in oklch, var(--surface-2) 62%, transparent); }
 .property-list dt { color: var(--text-tertiary); font-size: var(--text-xs); }
 .property-list dd { min-width: 0; margin: 0; overflow-wrap: anywhere; color: var(--text-primary); font-family: ui-monospace, monospace; font-size: var(--text-xs); line-height: 1.35; }
@@ -598,7 +624,7 @@ kbd {
 .proposal-card--compact { margin-block-start: 12px; padding: 12px; }
 .proposal-card--compact > div { display: flex; justify-content: flex-end; gap: 4px; }
 
-.editor-recovery, .editor-error { position: fixed; z-index: 45; inset-block-start: 60px; inset-inline-start: 50%; display: flex; align-items: center; justify-content: space-between; gap: 20px; width: min(760px, calc(100% - 32px)); padding: 10px 12px 10px 16px; border: 1px solid var(--border-strong); border-radius: 8px; background: var(--surface-2); box-shadow: 0 12px 36px oklch(0 0 0 / 0.42); transform: translateX(-50%); }
+.editor-recovery, .editor-error { position: fixed; z-index: 45; inset-block-start: 60px; inset-inline-start: 50%; display: flex; align-items: center; justify-content: space-between; gap: 20px; width: min(760px, calc(100% - 32px)); padding: 10px 12px 10px 16px; border: 1px solid var(--border-strong); border-radius: var(--radius-lg); background: var(--surface-2); box-shadow: 0 12px 36px oklch(0 0 0 / 0.42); transform: translateX(-50%); }
 .editor-recovery > div:first-child, .editor-error { font-size: var(--text-sm); }
 .editor-recovery span, .editor-error span { margin-inline-start: 8px; color: var(--text-secondary); }
 .editor-error { border-color: color-mix(in oklch, var(--danger) 60%, var(--border-strong)); }
@@ -615,27 +641,27 @@ kbd {
 .compact-workspace-advisory { display: none; }
 
 [data-agent-target="true"] { position: relative; outline: 2px solid var(--agent-b) !important; outline-offset: 3px; }
-[data-agent-target="true"]::after { content: "Agent target"; position: absolute; z-index: 50; inset-block-start: calc(100% + 5px); inset-inline-start: 0; padding: 3px 6px; border-radius: 4px; background: var(--surface-3); color: var(--text-primary); font-size: var(--text-2xs); white-space: nowrap; }
+[data-agent-target="true"]::after { content: "Agent target"; position: absolute; z-index: 50; inset-block-start: calc(100% + 5px); inset-inline-start: 0; padding: 3px 6px; border-radius: var(--radius-sm); background: var(--surface-3); color: var(--text-primary); font-size: var(--text-2xs); white-space: nowrap; }
 
 .document-form { display: grid; gap: 16px; }
 .document-form__orientation { margin: 0; padding: 0; border: 0; }
 .document-form__orientation legend { margin-block-end: 8px; color: var(--text-secondary); font-size: var(--text-sm); font-weight: var(--weight-strong); }
-.segmented-control { display: grid; grid-template-columns: repeat(3, 1fr); gap: 3px; padding: 3px; border-radius: 8px; background: var(--surface-2); }
-.segmented-control__item { min-height: 36px; border: 0; border-radius: 5px; background: transparent; color: var(--text-secondary); text-transform: capitalize; cursor: pointer; }
+.segmented-control { display: grid; grid-template-columns: repeat(3, 1fr); gap: 3px; padding: 3px; border-radius: var(--radius-lg); background: var(--surface-2); }
+.segmented-control__item { min-height: 36px; border: 0; border-radius: var(--radius-sm); background: transparent; color: var(--text-secondary); text-transform: capitalize; cursor: pointer; }
 .segmented-control__item[aria-pressed="true"] { background: var(--surface-3); color: var(--text-primary); box-shadow: 0 1px 2px oklch(0 0 0 / 0.2); }
 .document-form__grid { display: grid; grid-template-columns: minmax(90px, auto) minmax(0, 1fr); gap: 10px 16px; align-items: center; }
 .document-form__grid .field-label { margin: 0; }
 .document-form__grid .field-label span { color: var(--text-tertiary); font-weight: var(--weight-normal); }
 .text-field--numeric { font-variant-numeric: tabular-nums; }
-.select-field { width: 100%; min-height: 40px; padding-inline: 11px; border: 1px solid var(--border-strong); border-radius: 6px; background: var(--surface-2); color: var(--text-primary); font: inherit; }
+.select-field { width: 100%; min-height: 40px; padding-inline: 11px; border: 1px solid var(--border-strong); border-radius: var(--radius-md); background: var(--surface-2); color: var(--text-primary); font: inherit; }
 .color-field { display: flex; align-items: center; justify-content: space-between; color: var(--text-secondary); font-size: var(--text-sm); }
-.color-field input { width: 48px; height: 36px; padding: 3px; border: 1px solid var(--border-strong); border-radius: 6px; background: var(--surface-2); }
+.color-field input { width: 48px; height: 36px; padding: 3px; border: 1px solid var(--border-strong); border-radius: var(--radius-md); background: var(--surface-2); }
 
 .command-palette { min-height: 300px; }
 .command-palette__search { height: 40px; }
 .command-palette__count { margin: 10px 2px 6px; color: var(--text-tertiary); font-size: var(--text-2xs); }
 .command-palette__results { display: grid; gap: 3px; max-height: min(420px, 50vh); margin: 0; padding: 0; overflow-y: auto; list-style: none; }
-.command-result { display: flex; align-items: center; justify-content: space-between; gap: 16px; width: 100%; min-height: 52px; padding: 7px 10px; border: 1px solid transparent; border-radius: 6px; background: transparent; color: var(--text-primary); text-align: start; cursor: pointer; }
+.command-result { display: flex; align-items: center; justify-content: space-between; gap: 16px; width: 100%; min-height: 52px; padding: 7px 10px; border: 1px solid transparent; border-radius: var(--radius-md); background: transparent; color: var(--text-primary); text-align: start; cursor: pointer; }
 .command-result[data-active="true"], .command-result:hover { border-color: var(--border-subtle); background: var(--surface-2); }
 .command-result strong, .command-result small { display: block; }
 .command-result strong { font-size: var(--text-sm); }
@@ -674,7 +700,7 @@ kbd {
 
 @media (max-width: 520px) {
   .editor-shell { grid-template-columns: 0 minmax(0, 1fr); }
-  .editor-tool-rail { position: fixed; z-index: 18; inset-inline: 8px; inset-block-end: max(8px, env(safe-area-inset-bottom)); grid-row: auto; flex-direction: row; justify-content: center; width: fit-content; margin-inline: auto; padding: 4px; border: 1px solid var(--border-subtle); border-radius: 8px; background: var(--surface-1); box-shadow: 0 8px 24px oklch(0 0 0 / 0.38); }
+  .editor-tool-rail { position: fixed; z-index: 18; inset-inline: 8px; inset-block-end: max(8px, env(safe-area-inset-bottom)); grid-row: auto; flex-direction: row; justify-content: center; width: fit-content; margin-inline: auto; padding: 4px; border: 1px solid var(--border-subtle); border-radius: var(--radius-lg); background: var(--surface-1); box-shadow: 0 8px 24px oklch(0 0 0 / 0.38); }
   .editor-center { grid-column: 1 / -1; }
   .editor-left-panel { inset-inline-start: 0; width: min(var(--leading-panel-width), 90vw); }
   .editor-inspector { width: min(var(--trailing-panel-width), 90vw); }
@@ -692,7 +718,7 @@ kbd {
  * the point where saying so would have helped.
  */
 @media (max-width: 899px) {
-  .compact-workspace-advisory { position: fixed; z-index: 25; inset-inline: 12px; inset-block-end: 64px; display: block; margin: 0 auto; padding: 7px 10px; border: 1px solid var(--border-subtle); border-radius: 6px; background: color-mix(in oklch, var(--surface-2) 94%, transparent); color: var(--text-secondary); font-size: var(--text-2xs); line-height: 1.35; text-align: center; backdrop-filter: blur(10px); }
+  .compact-workspace-advisory { position: fixed; z-index: 25; inset-inline: 12px; inset-block-end: 64px; display: block; margin: 0 auto; padding: 7px 10px; border: 1px solid var(--border-subtle); border-radius: var(--radius-md); background: color-mix(in oklch, var(--surface-2) 94%, transparent); color: var(--text-secondary); font-size: var(--text-2xs); line-height: 1.35; text-align: center; backdrop-filter: blur(10px); }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -769,7 +795,7 @@ a {
   inset-inline-start: 8px;
   z-index: 100;
   padding: 10px 14px;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   background: var(--text-primary);
   color: var(--app-bg);
   font-size: var(--text-sm);
@@ -822,7 +848,7 @@ a {
   height: 32px;
   padding-inline: 11px;
   border: 1px solid var(--border-subtle);
-  border-radius: 7px;
+  border-radius: var(--radius-md);
   background: var(--surface-2);
   color: var(--text-tertiary);
 }
@@ -854,7 +880,7 @@ a {
   min-height: 32px;
   padding: 6px 14px;
   border: 1px solid transparent;
-  border-radius: 999px;
+  border-radius: var(--radius-round);
   background:
     linear-gradient(var(--surface-2), var(--surface-2)) padding-box,
     linear-gradient(90deg, var(--agent-a), var(--agent-b)) border-box;
@@ -880,8 +906,8 @@ a {
 .webmcp-status,
 .project-actions__menu button {
   transition-property: background-color, border-color, color, opacity, transform;
-  transition-duration: 130ms;
-  transition-timing-function: cubic-bezier(0.2, 0, 0, 1);
+  transition-duration: var(--duration-fast);
+  transition-timing-function: var(--ease);
 }
 
 .button {
@@ -892,7 +918,7 @@ a {
   min-height: 40px;
   padding-inline: 15px;
   border: 1px solid transparent;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   text-decoration: none;
   font-size: var(--text-sm);
   font-weight: var(--weight-strong);
@@ -967,7 +993,7 @@ a {
   height: 40px;
   padding: 0;
   border: 1px solid transparent;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   background: transparent;
   color: var(--text-secondary);
   cursor: pointer;
@@ -1055,7 +1081,7 @@ a {
   min-height: 40px;
   padding-inline: 12px;
   border: 0;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   background: transparent;
   color: var(--text-secondary);
   text-align: start;
@@ -1180,7 +1206,7 @@ a {
   align-items: center;
   min-height: 112px;
   border: 1px solid var(--border-subtle);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   background: var(--surface-1);
 }
 
@@ -1192,7 +1218,7 @@ a {
 .project-thumbnail {
   width: 126px;
   height: 80px;
-  border-radius: 5px;
+  border-radius: var(--radius-sm);
   object-fit: cover;
   outline: 1px solid oklch(1 0 0 / 0.1);
   outline-offset: -1px;
@@ -1285,7 +1311,7 @@ a {
   width: 190px;
   padding: 6px;
   border: 1px solid var(--border-strong);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   background: var(--surface-2);
   box-shadow: 0 18px 46px oklch(0 0 0 / 0.38);
 }
@@ -1297,7 +1323,7 @@ a {
   min-height: 36px;
   padding-inline: 10px;
   border: 0;
-  border-radius: 5px;
+  border-radius: var(--radius-sm);
   background: transparent;
   color: var(--text-secondary);
   text-align: start;
@@ -1422,7 +1448,7 @@ a {
   margin-block-end: 24px;
   padding: 14px;
   border: 1px solid var(--border-subtle);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   background: var(--surface-1);
 }
 
@@ -1481,7 +1507,7 @@ a {
 
 .skeleton {
   display: block;
-  border-radius: 5px;
+  border-radius: var(--radius-sm);
   background: linear-gradient(90deg, var(--surface-2), var(--surface-3), var(--surface-2));
   background-size: 220% 100%;
 }
@@ -1516,7 +1542,7 @@ dialog {
   padding: 0;
   overflow: auto;
   border: 1px solid var(--border-strong);
-  border-radius: 12px;
+  border-radius: var(--radius-xl);
   background: var(--surface-1);
   box-shadow: 0 28px 90px oklch(0 0 0 / 0.55);
   overscroll-behavior: contain;
@@ -1596,7 +1622,7 @@ dialog {
   min-height: 40px;
   padding-inline: 12px;
   border: 1px solid var(--border-strong);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   outline: 0;
   background: var(--surface-2);
   color: var(--text-primary);
@@ -1640,7 +1666,7 @@ dialog {
   align-items: flex-start;
   gap: 12px;
   padding: 14px;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   background: color-mix(in oklch, var(--warning) 8%, var(--surface-2));
   color: var(--warning);
 }
@@ -1716,7 +1742,7 @@ dialog {
   gap: 7px;
   padding: 7px 12px;
   border: 1px solid color-mix(in oklch, var(--agent-a) 60%, var(--border-subtle));
-  border-radius: 999px;
+  border-radius: var(--radius-round);
   color: var(--text-secondary);
   font-size: var(--text-2xs);
 }
@@ -1757,7 +1783,7 @@ dialog {
   align-items: center;
   gap: 14px;
   border: 1px solid color-mix(in oklch, var(--warning) 42%, var(--border-subtle));
-  border-radius: 9px;
+  border-radius: var(--radius-lg);
   background: color-mix(in oklch, var(--warning) 7%, var(--surface-1));
 }
 
@@ -1821,7 +1847,7 @@ dialog {
 .history-panel {
   min-width: 0;
   border: 1px solid var(--border-subtle);
-  border-radius: 10px;
+  border-radius: var(--radius-xl);
   background: var(--surface-1);
 }
 
@@ -1859,7 +1885,7 @@ dialog {
   margin: 0;
   overflow: hidden;
   border: 1px solid var(--border-subtle);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   background: var(--border-subtle);
 }
 
@@ -1925,7 +1951,7 @@ dialog {
   margin-block-start: 18px;
   padding: 18px;
   border: 1px solid color-mix(in oklch, var(--agent-a) 46%, var(--border-subtle));
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   background: color-mix(in oklch, var(--agent-a) 6%, var(--surface-2));
 }
 
@@ -1965,7 +1991,7 @@ dialog {
   padding: 0;
   overflow: hidden;
   border: 1px solid var(--border-subtle);
-  border-radius: 7px;
+  border-radius: var(--radius-md);
   background: var(--border-subtle);
   list-style: none;
 }
@@ -2023,7 +2049,7 @@ dialog {
   padding: 14px;
   overflow: auto;
   border: 1px solid color-mix(in oklch, var(--agent-a) 58%, var(--border-subtle));
-  border-radius: 12px;
+  border-radius: var(--radius-xl);
   background: color-mix(in oklch, var(--surface-2) 94%, transparent);
   box-shadow: 0 22px 70px oklch(0 0 0 / 0.5);
   backdrop-filter: blur(18px);
@@ -2128,7 +2154,7 @@ dialog {
   height: 28px;
   padding-inline: 7px;
   place-items: center;
-  border-radius: 999px;
+  border-radius: var(--radius-round);
   background: var(--surface-3);
   color: var(--text-secondary);
   font-size: var(--text-2xs);
@@ -2208,7 +2234,7 @@ dialog {
   width: min(560px, 100%);
   padding: 32px;
   border: 1px solid var(--border-subtle);
-  border-radius: 10px;
+  border-radius: var(--radius-xl);
   background: var(--surface-1);
 }
 
@@ -2675,7 +2701,7 @@ dialog {
   gap: 8px;
   padding-inline: 10px;
   border: 1px solid var(--border-subtle);
-  border-radius: 7px;
+  border-radius: var(--radius-md);
   background: var(--surface-2);
   color: var(--text-tertiary);
 }
@@ -2700,7 +2726,7 @@ dialog {
   margin: 0;
   padding: 8px 10px;
   border: 1px solid color-mix(in oklch, var(--warning) 40%, var(--border-subtle));
-  border-radius: 7px;
+  border-radius: var(--radius-md);
   background: color-mix(in oklch, var(--warning) 12%, var(--surface-2));
   color: var(--text-secondary);
   font-size: var(--text-xs);
@@ -2716,7 +2742,7 @@ dialog {
   gap: 6px;
   padding: 16px 12px;
   border: 1px dashed var(--border-strong);
-  border-radius: 9px;
+  border-radius: var(--radius-lg);
   background: var(--surface-2);
   text-align: center;
   transition: border-color 140ms ease, background-color 140ms ease;
@@ -2742,7 +2768,7 @@ dialog {
   inline-size: 100%;
   padding: 6px;
   border: 1px solid transparent;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   background: none;
   color: inherit;
   text-align: start;
@@ -2758,7 +2784,7 @@ dialog {
   inline-size: 44px;
   block-size: 44px;
   border: 1px solid var(--border-subtle);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   overflow: hidden;
   background: var(--surface-3);
 }
@@ -2787,7 +2813,7 @@ dialog {
 .media-details {
   padding: 12px;
   border: 1px solid var(--border-subtle);
-  border-radius: 9px;
+  border-radius: var(--radius-lg);
   background: var(--surface-2);
 }
 
@@ -2802,7 +2828,7 @@ dialog {
   inset-inline-end: 1px;
   min-inline-size: 15px;
   padding-inline: 3px;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   background: var(--accent);
   color: oklch(0.15 0.02 252);
   font-size: var(--text-2xs);
@@ -2820,7 +2846,7 @@ dialog {
   max-block-size: min(60vh, 520px);
   padding: 14px;
   border: 1px solid var(--border-subtle);
-  border-radius: 11px;
+  border-radius: var(--radius-xl);
   background: var(--surface-1);
   box-shadow: 0 18px 44px oklch(0 0 0 / 0.5);
   overflow-y: auto;
@@ -2835,7 +2861,7 @@ dialog {
   padding: 10px;
   border: 1px solid var(--border-subtle);
   border-inline-start: 2px solid var(--border-strong);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   background: var(--surface-2);
 }
 
@@ -2854,7 +2880,7 @@ dialog {
 /* Status is never carried by color alone. */
 .job-status {
   padding-inline: 6px;
-  border-radius: 5px;
+  border-radius: var(--radius-sm);
   background: var(--surface-3);
   color: var(--text-secondary);
   font-size: var(--text-2xs);
@@ -2901,7 +2927,7 @@ dialog {
   gap: 2px;
   padding: 3px;
   border: 1px solid transparent;
-  border-radius: 7px;
+  border-radius: var(--radius-md);
 }
 
 /* The action cluster packs from the start of its own line, indented under the name. */
@@ -2920,7 +2946,7 @@ dialog {
   min-inline-size: 0;
   padding: 3px;
   border: 0;
-  border-radius: 5px;
+  border-radius: var(--radius-sm);
   background: none;
   color: inherit;
   text-align: start;
@@ -2968,7 +2994,7 @@ dialog {
   min-inline-size: 0;
   padding: 3px 6px;
   border: 1px solid var(--accent);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   background: var(--surface-1);
   color: var(--text-primary);
   font-size: var(--text-sm);
@@ -2999,7 +3025,7 @@ dialog {
   block-size: 72px;
   padding: 6px;
   border: 1px solid var(--border-subtle);
-  border-radius: 7px;
+  border-radius: var(--radius-md);
   background: var(--surface-2);
 }
 
@@ -3032,7 +3058,7 @@ dialog {
 .size-fields input, .slider-field select {
   padding: 7px 9px;
   border: 1px solid var(--border-subtle);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   background: var(--surface-2);
   color: var(--text-primary);
   font-size: var(--text-sm);
@@ -3061,7 +3087,7 @@ dialog {
   gap: 8px;
   padding: 10px;
   border: 1px solid var(--border-subtle);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   background: var(--surface-1);
 }
 .media-filters fieldset { margin: 0; padding: 0; border: 0; }
@@ -3071,7 +3097,7 @@ dialog {
 .chip {
   padding: 3px 9px;
   border: 1px solid var(--border-subtle);
-  border-radius: 999px;
+  border-radius: var(--radius-round);
   background: var(--surface-2);
   color: var(--text-secondary);
   font-size: var(--text-2xs);
@@ -3083,7 +3109,7 @@ dialog {
 .media-filter-summary { display: flex; flex-wrap: wrap; gap: 6px; color: var(--text-secondary); font-size: var(--text-2xs); }
 .link-button { border: 0; background: none; color: var(--accent); font-size: var(--text-2xs); cursor: pointer; }
 
-.media-view-switch { display: flex; gap: 2px; padding: 2px; border-radius: 6px; background: var(--surface-2); }
+.media-view-switch { display: flex; gap: 2px; padding: 2px; border-radius: var(--radius-md); background: var(--surface-2); }
 .media-view-switch button {
   flex: 1;
   display: inline-flex;
@@ -3092,7 +3118,7 @@ dialog {
   gap: 4px;
   padding: 5px 6px;
   border: 0;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   background: transparent;
   color: var(--text-secondary);
   font-size: var(--text-2xs);
@@ -3110,7 +3136,7 @@ dialog {
   inline-size: 100%;
   padding: 4px 8px;
   border: 0;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   background: transparent;
   color: var(--text-secondary);
   font-size: var(--text-xs);
@@ -3128,7 +3154,7 @@ dialog {
   position: relative;
   min-block-size: 260px;
   border: 1px dashed var(--border-subtle);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   background: var(--surface-1);
   overflow: auto;
 }
@@ -3137,7 +3163,7 @@ dialog {
   inline-size: 118px;
   padding: 4px;
   border: 1px solid var(--border-subtle);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   background: var(--surface-2);
   color: var(--text-secondary);
   font-size: var(--text-2xs);
@@ -3145,13 +3171,13 @@ dialog {
   cursor: grab;
 }
 .storyboard-card--selected { border-color: var(--accent); }
-.storyboard-card img { inline-size: 100%; block-size: 64px; object-fit: cover; border-radius: 4px; }
+.storyboard-card img { inline-size: 100%; block-size: 64px; object-fit: cover; border-radius: var(--radius-sm); }
 .storyboard-card__placeholder {
   display: grid;
   place-items: center;
   inline-size: 100%;
   block-size: 64px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   background: var(--surface-3);
 }
 
@@ -3160,7 +3186,7 @@ dialog {
   inset-block-start: 2px;
   inset-inline-start: 2px;
   padding: 0 3px;
-  border-radius: 3px;
+  border-radius: var(--radius-xs);
   background: var(--success);
   color: var(--app-bg);
   font-size: var(--text-2xs);
@@ -3174,7 +3200,7 @@ dialog {
   gap: 8px;
   padding: 12px;
   border: 1px solid var(--warning);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   background: color-mix(in oklch, var(--warning) 10%, var(--surface-1));
 }
 .media-proposal h3 { margin: 0; font-size: var(--text-sm); }
@@ -3209,7 +3235,7 @@ dialog {
 .anchor-grid legend { padding: 0; color: var(--text-tertiary); font-size: var(--text-2xs); text-transform: uppercase; letter-spacing: 0.04em; }
 .anchor-grid label { display: grid; place-items: center; block-size: 24px; cursor: pointer; }
 .anchor-grid input { position: absolute; opacity: 0; }
-.anchor-dot { inline-size: 10px; block-size: 10px; border: 1px solid var(--border-strong); border-radius: 2px; }
+.anchor-dot { inline-size: 10px; block-size: 10px; border: 1px solid var(--border-strong); border-radius: var(--radius-xs); }
 .anchor-dot--active { background: var(--accent); border-color: var(--accent); }
 .anchor-grid input:focus-visible + span + .anchor-dot { outline: 2px solid var(--focus); outline-offset: 2px; }
 
@@ -3228,7 +3254,7 @@ dialog {
   gap: 8px;
   padding: 8px;
   border: 1px solid var(--border-subtle);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   background: var(--surface-1);
 }
 .output-list li > div:first-child { display: flex; flex-direction: column; gap: 2px; min-inline-size: 0; }
@@ -3265,7 +3291,7 @@ dialog {
   inset-block-end: 4px;
   inset-inline-start: 4px;
   padding: 1px 5px;
-  border-radius: 3px;
+  border-radius: var(--radius-xs);
   background: var(--surface-1);
   color: var(--text-primary);
   font-family: ui-monospace, monospace; font-size: var(--text-2xs);
@@ -3276,7 +3302,7 @@ dialog {
   block-size: 12px;
   margin: -6px 0 0 -6px;
   border: 1px solid var(--app-bg);
-  border-radius: 2px;
+  border-radius: var(--radius-xs);
   background: var(--focus);
   cursor: nwse-resize;
 }
@@ -3300,7 +3326,7 @@ dialog {
   z-index: 2;
   margin: 0;
   padding: 2px 6px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   background: var(--surface-1);
   color: var(--text-secondary);
   font-size: var(--text-2xs);
@@ -3338,7 +3364,7 @@ dialog {
   z-index: 2;
   margin: 0;
   padding: 2px 6px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   background: var(--surface-1);
   color: var(--text-tertiary);
   font-size: var(--text-2xs);
@@ -3537,7 +3563,7 @@ dialog {
   gap: 1px;
   align-self: center;
   border: 1px solid var(--border-subtle);
-  border-radius: 12px;
+  border-radius: var(--radius-xl);
   background: var(--border-subtle);
   overflow: hidden;
 }
@@ -3599,7 +3625,7 @@ dialog {
   gap: 10px;
   padding: 10px 12px;
   border: 1px solid var(--border-subtle);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   background: var(--surface-1);
   cursor: pointer;
 }
@@ -3629,7 +3655,7 @@ dialog {
   gap: 7px;
   margin: 9px 0 0;
   padding: 8px 10px;
-  border-radius: 7px;
+  border-radius: var(--radius-md);
   background: color-mix(in oklch, var(--agent-a) 10%, transparent);
   color: var(--text-secondary);
   font-size: var(--text-xs);
@@ -3665,7 +3691,7 @@ dialog {
   margin-block-start: 10px;
   padding: 10px;
   border: 1px solid var(--border-subtle);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   background: var(--surface-2);
 }
 
@@ -3681,7 +3707,7 @@ dialog {
 .effect-add__item {
   padding: 6px 8px;
   border: 1px solid var(--border-subtle);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   background: var(--surface-1);
   color: var(--text-secondary);
   font-size: var(--text-xs);
@@ -3703,7 +3729,7 @@ dialog {
 
 .effect-row {
   border: 1px solid var(--border-subtle);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   background: var(--surface-2);
 }
 
@@ -3741,7 +3767,7 @@ dialog {
 .effect-row__title small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .effect-row__title strong { font-size: var(--text-sm); font-weight: var(--weight-medium); }
 .effect-row__title small { color: var(--text-tertiary); font-size: var(--text-2xs); }
-.effect-row__title:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: 4px; }
+.effect-row__title:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: var(--radius-sm); }
 
 .effect-row__actions { display: flex; flex: 1 0 auto; gap: 1px; }
 
@@ -3773,7 +3799,7 @@ textarea.text-field {
   block-size: 26px;
   padding: 0;
   border: 1px solid var(--border-subtle);
-  border-radius: 5px;
+  border-radius: var(--radius-sm);
   background: none;
   cursor: pointer;
 }
@@ -3794,7 +3820,7 @@ textarea.text-field {
   block-size: 26px;
   padding: 0;
   border: 0;
-  border-radius: 5px;
+  border-radius: var(--radius-sm);
   background: none;
   color: var(--text-tertiary);
   cursor: pointer;
@@ -3828,7 +3854,7 @@ textarea.text-field {
   align-items: center;
   gap: 4px;
   padding: 2px 4px 2px 8px;
-  border-radius: 999px;
+  border-radius: var(--radius-round);
   background: var(--surface-3);
   color: var(--text-secondary);
   font-size: var(--text-2xs);
@@ -3900,7 +3926,7 @@ textarea.text-field {
   min-inline-size: 0;
   padding: 7px 9px;
   border: 1px solid var(--border-subtle);
-  border-radius: 7px;
+  border-radius: var(--radius-md);
   background: var(--surface-1);
   color: var(--text-secondary);
   font-size: var(--text-xs);
@@ -3945,7 +3971,7 @@ textarea.text-field {
   margin-block: 10px 0;
   padding: 11px 12px;
   border: 1px solid var(--border-strong);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   background: var(--surface-2);
 }
 
@@ -3990,7 +4016,7 @@ textarea.text-field {
 .channel-bar {
   block-size: 4px;
   margin-block-start: 7px;
-  border-radius: 2px;
+  border-radius: var(--radius-xs);
   background: var(--surface-3, var(--surface-2));
   overflow: hidden;
 }
@@ -4007,7 +4033,7 @@ textarea.text-field {
   inline-size: 11px; block-size: 11px;
   margin-inline-end: 6px;
   border: 1px solid var(--border-strong);
-  border-radius: 3px;
+  border-radius: var(--radius-xs);
   vertical-align: -1px;
 }
 
@@ -4015,7 +4041,7 @@ textarea.text-field {
   inline-size: 26px; block-size: 26px;
   padding: 2px;
   border: 1px solid var(--border-strong);
-  border-radius: 5px;
+  border-radius: var(--radius-sm);
   background: var(--surface-2);
 }
 
@@ -4031,7 +4057,7 @@ textarea.text-field {
   margin-block: 9px;
   padding: 10px;
   border: 1px solid var(--border-strong);
-  border-radius: 7px;
+  border-radius: var(--radius-md);
   background: var(--surface-2);
 }
 
