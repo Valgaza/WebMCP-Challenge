@@ -82,6 +82,28 @@ describe("Phase 2 editor workspace", () => {
     expect(document.activeElement).toHaveAttribute("data-agent-target", "true");
   });
 
+  /*
+   * The one that catches a portal.
+   *
+   * A collapsed Inspector group removes its body from layout, so the control an agent asks for
+   * is not merely hidden — it has no box and no place in the tab order. Reaching it depends on
+   * `element.closest("[data-inspector-section]")` finding the group and opening it first, which
+   * quietly stops working the moment a control is rendered into a portal instead of in place.
+   * The existing coverage only ever asked for a target in a group that was already open.
+   */
+  it("opens a collapsed Inspector group to reach a target inside it", async () => {
+    await projectService.createPhotoDocument({ projectId: project.id, expectedRevisionId: project.headRevisionId, widthPx: 1000, heightPx: 1000, resolutionPpi: 72, orientation: "square", background: { type: "solid", color: "#ffffff" } });
+    renderEditor();
+    await screen.findByRole("button", { name: /Image document, 1000 by 1000 pixels/ });
+
+    const group = document.querySelector('[data-inspector-section="export"]');
+    expect(group).toHaveAttribute("data-open", "false");
+
+    focusStore.request(project.id, "inspector-export", "webmcp");
+    await waitFor(() => expect(document.activeElement).toHaveAttribute("data-semantic-id", "inspector-export"));
+    expect(document.querySelector('[data-inspector-section="export"]')).toHaveAttribute("data-open", "true");
+  });
+
   it("keeps a keyboard path for canvas zoom and announces semantic state", async () => {
     await projectService.createPhotoDocument({ projectId: project.id, expectedRevisionId: project.headRevisionId, widthPx: 1600, heightPx: 900, resolutionPpi: 72, orientation: "landscape", background: { type: "transparent" } });
     renderEditor();
