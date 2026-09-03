@@ -158,4 +158,38 @@ describe("EstroDatabase migrations", () => {
     await expect(new WorkspaceService(upgraded).getWorkspace("phase-1-project")).resolves.toMatchObject({ projectId: "phase-1-project", schemaVersion: 1, viewport: { mode: "fit" } });
     upgraded.close();
   });
+
+  it("backfills asset lists and adds asset and job stores in schema version 6", async () => {
+    databaseName = `estro-phase-3-migration-${crypto.randomUUID()}`;
+    const phaseTwo = new Dexie(databaseName);
+    phaseTwo.version(5).stores({
+      projects: "id, name, kind, status, updatedAt, lastOpenedAt, headRevisionId",
+      revisions: "id, projectId, parentRevisionId, transactionId, createdAt",
+      transactions: "id, projectId, resultingRevisionId, kind, createdAt",
+      durability: "projectId, durableRevisionId, recoveryCreatedAt",
+      snapshots: "id, projectId, revisionId, transactionId, status, createdAt",
+      proposals: "id, projectId, sourceRevisionId, status, expiresAt",
+      workspaces: "projectId, updatedAt",
+    });
+    const createdAt = "2026-09-02T08:00:00.000Z";
+    const state = { name: "Phase 2 canvas", kind: "photo", status: "active", photoDocument: null };
+    await phaseTwo.transaction("rw", phaseTwo.table("projects"), phaseTwo.table("revisions"), phaseTwo.table("transactions"), phaseTwo.table("durability"), async () => {
+      await phaseTwo.table("projects").add({ id: "phase-2-project", schemaVersion: 2, name: "Phase 2 canvas", kind: "photo", status: "active", storageMode: "local", createdAt, updatedAt: createdAt, lastOpenedAt: null, deletedAt: null, headRevisionId: "phase-2-revision", undoTransactionIds: [], redoTransactionIds: [] });
+      await phaseTwo.table("revisions").add({ id: "phase-2-revision", schemaVersion: 1, projectId: "phase-2-project", sequence: 0, parentRevisionId: null, transactionId: "phase-2-transaction", state, createdAt });
+      await phaseTwo.table("transactions").add({ id: "phase-2-transaction", schemaVersion: 1, projectId: "phase-2-project", sequence: 0, kind: "initialize", targetTransactionId: null, sourceRevisionId: null, resultingRevisionId: "phase-2-revision", operations: [{ id: "phase-2-operation", schemaVersion: 1, type: "project.create", projectId: "phase-2-project", state }], actor: { type: "system", id: "phase-2", displayName: "Phase 2" }, intent: "Create project.", summary: "Created project.", affectedIds: ["phase-2-project"], warnings: [], undoable: false, createdAt });
+      await phaseTwo.table("durability").add({ projectId: "phase-2-project", schemaVersion: 1, durableRevisionId: "phase-2-revision", lastExplicitSaveAt: createdAt, lastAutosaveAt: null, recoveryReason: null, recoveryCreatedAt: null });
+    });
+    phaseTwo.close();
+
+    const upgraded = new EstroDatabase(databaseName);
+    const history = await new ProjectRepository(upgraded).getHistory("phase-2-project");
+    // Replaying pre-v6 history must produce a state the current schema accepts.
+    expect(history.headRevision.state.assets).toEqual([]);
+    expect(history.transactions[0]?.operations[0]).toMatchObject({ state: { assets: [] } });
+    expect(history.headRevision.state.photoDocument).toBeNull();
+    await expect(upgraded.assetRecords.count()).resolves.toBe(0);
+    await expect(upgraded.jobs.count()).resolves.toBe(0);
+    await expect(upgraded.assetSources.count()).resolves.toBe(0);
+    upgraded.close();
+  });
 });

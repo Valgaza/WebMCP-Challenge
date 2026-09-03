@@ -72,6 +72,16 @@ export class ProjectRepository {
     }
   }
 
+  /** Ordered revisions for one project, used by comparison baselines and history views. */
+  async listRevisions(projectId: string, limit = 200): Promise<ProjectRevision[]> {
+    try {
+      const revisions = await this.database.revisions.where("projectId").equals(projectId).toArray();
+      return revisions.sort((a, b) => a.sequence - b.sequence).slice(-limit);
+    } catch (error) {
+      throw toProjectError(error);
+    }
+  }
+
   async getHistory(projectId: string): Promise<ProjectHistorySnapshot> {
     try {
       return await this.database.transaction(
@@ -237,7 +247,13 @@ export class ProjectRepository {
           await this.syncSnapshotOperations(nextTransaction, nextRevision);
           await this.updateDurabilityAfterCommit(nextProject, nextRevision, nextTransaction, commit.durabilityMode ?? "draft");
           if (commit.proposalId) {
-            await this.database.proposals.update(commit.proposalId, { status: "applied", appliedTransactionId: nextTransaction.id });
+            // Dexie builds dotted update paths from the entity type. A proposal carries
+            // operations containing the recursive layer tree, which makes that inference
+            // non-terminating, so this one call is typed loosely on purpose.
+            const proposals = this.database.proposals as unknown as {
+              update: (key: string, changes: Record<string, unknown>) => Promise<number>;
+            };
+            await proposals.update(commit.proposalId, { status: "applied", appliedTransactionId: nextTransaction.id });
           }
 
           const transactions = (await this.database.transactions.where("projectId").equals(nextProject.id).toArray())
