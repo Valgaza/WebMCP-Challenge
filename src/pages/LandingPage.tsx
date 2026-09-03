@@ -1,9 +1,10 @@
-import { ArrowRight, BookOpen, GitBranch, HardDrive, Sparkles, Undo2, Wand2 } from "lucide-react";
+import { ArrowRight, BookOpen, GitBranch, HardDrive, Undo2, Wand2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { assetService, layerService, projectService } from "../app/services";
 import { buildSampleProject } from "../application/sample-project";
 import { knownPhrases } from "../application/phrase-service";
+import { WebMcpChip } from "../components/ui/WebMcpChip";
 import { getWebMcpAvailability } from "../webmcp/model-context";
 import { ESTRO_TOOL_COUNT, getRegisteredToolCount } from "../webmcp/site-tools";
 
@@ -54,16 +55,8 @@ export function LandingPage() {
   return (
     <div className="landing">
       <header className="landing__bar">
-        <span className="wordmark">Estro</span>
-        <div className="webmcp-status" role="status" aria-label="WebMCP availability">
-          <Sparkles aria-hidden="true" size={15} />
-          <span>{webMcp === "available" ? "WebMCP detected" : "WebMCP not detected"}</span>
-          <small>
-            {webMcp === "available"
-              ? `${getRegisteredToolCount()} tools ready`
-              : "Chrome 149+ with the WebMCP flag, or ChatGPT's browser"}
-          </small>
-        </div>
+        <Link className="wordmark" to="/projects" aria-label="Estro projects">Estro</Link>
+        <WebMcpChip available={webMcp === "available"} />
       </header>
 
       <main className="landing__main">

@@ -8,7 +8,7 @@ import {
   Plus,
   RotateCcw,
   Search,
-  Sparkles,
+  X,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
@@ -16,12 +16,12 @@ import type { ProjectLifecycleService, ProjectPersistenceService } from "../appl
 import { DeleteProjectDialog } from "../components/DeleteProjectDialog";
 import { ProjectActionsMenu } from "../components/ProjectActionsMenu";
 import { ProjectNameDialog } from "../components/ProjectNameDialog";
+import { WebMcpChip } from "../components/ui/WebMcpChip";
 import type { ProjectRecord } from "../domain/project";
 import type { RecoverableProjectSummary } from "../domain/project-persistence";
 import { ProjectError } from "../domain/project-error";
 import { projectService as defaultProjectService } from "../app/services";
 import { getWebMcpAvailability } from "../webmcp/model-context";
-import { getRegisteredToolCount } from "../webmcp/site-tools";
 import { buildSampleProject } from "../application/sample-project";
 import { assetService, layerService, projectService } from "../app/services";
 
@@ -54,6 +54,7 @@ function projectKindLabel(project: ProjectRecord): string {
 export function ProjectHub({ service = defaultProjectService }: ProjectHubProps) {
   const navigate = useNavigate();
   const shellRef = useRef<HTMLDivElement>(null);
+  const searchRef = useRef<HTMLInputElement>(null);
   const deletedProjectIndexRef = useRef<number | null>(null);
   const [projects, setProjects] = useState<ProjectRecord[]>([]);
   const [thumbnails, setThumbnails] = useState<Record<string, string>>({});
@@ -274,45 +275,65 @@ export function ProjectHub({ service = defaultProjectService }: ProjectHubProps)
       </a>
 
       <header className="top-bar">
-        <Link className="wordmark" to="/projects" aria-label="Estro projects">
+        {/*
+          * Home is the landing page, not this one.
+          *
+          * The wordmark linked to `/projects` from `/projects`, so the one thing on the page
+          * that looks like a way back went nowhere. Nothing in the app linked to `/` at all.
+          */}
+        <Link className="wordmark" to="/" aria-label="Estro home">
           Estro
         </Link>
         <label className="search-field">
           <span className="sr-only">Search projects</span>
-          <Search aria-hidden="true" size={16} />
+          <Search aria-hidden="true" size={15} />
           <input
+            ref={searchRef}
             type="search"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             placeholder="Search projects"
           />
+          {/*
+            * Offered here only while the empty state is not already offering it.
+            *
+            * A failed search puts a "Clear search" button in the middle of the page, and two
+            * controls with one name in one view is the duplication this header has already
+            * been through once. The quiet affordance yields to the loud one.
+            */}
+          {query && visibleProjects.length > 0 ? (
+            <button
+              className="search-field__clear"
+              type="button"
+              aria-label="Clear search"
+              onClick={() => { setQuery(""); searchRef.current?.focus(); }}
+            >
+              <X aria-hidden="true" size={13} />
+            </button>
+          ) : null}
         </label>
-        <div className="webmcp-status" role="status" aria-label="WebMCP availability">
-          <Sparkles aria-hidden="true" size={15} />
-          <span>{webMcpAvailability === "available" ? "WebMCP detected" : "Manual controls"}</span>
-          <small>{webMcpAvailability === "available" ? `${getRegisteredToolCount()} tools ready` : "WebMCP unavailable"}</small>
+        <div className="top-bar__end">
+          <WebMcpChip available={webMcpAvailability === "available"} />
+          {/*
+            * Offered here only when there is a list to sit above.
+            *
+            * With no projects yet, the empty state already puts these same two actions in the
+            * middle of the screen, so the header repeated them: four buttons for two actions,
+            * and each action arrived under two different names.
+            */}
+          {showHeaderActions ? (
+            <>
+              <button className="button button--secondary top-bar__sample" type="button" disabled={sampleBusy} onClick={() => void loadSample()}>
+                <Wand2 aria-hidden="true" size={15} />
+                <span>{sampleBusy ? "Loading…" : "Load sample"}</span>
+              </button>
+              <button className="button button--primary top-bar__primary" type="button" onClick={() => setNameDialog({ mode: "create" })}>
+                <Plus aria-hidden="true" size={15} />
+                <span>New project</span>
+              </button>
+            </>
+          ) : null}
         </div>
-        {/*
-          * Offered here only when there is a list to sit above.
-          *
-          * With no projects yet, the empty state already puts these same two actions in the
-          * middle of the screen, so the header repeated them: four buttons for two actions,
-          * and each action arrived under two different names — "Load sample" beside "Load the
-          * sample project", "New project" beside "Start an empty project". Whichever place
-          * owns the moment now owns it alone, and both use one label.
-          */}
-        {showHeaderActions ? (
-          <>
-            <button className="button button--secondary top-bar__sample" type="button" disabled={sampleBusy} onClick={() => void loadSample()}>
-              <Wand2 aria-hidden="true" size={16} />
-              {sampleBusy ? "Loading the sample…" : "Load the sample project"}
-            </button>
-            <button className="button button--primary top-bar__primary" type="button" onClick={() => setNameDialog({ mode: "create" })}>
-              <Plus aria-hidden="true" size={16} />
-              New project
-            </button>
-          </>
-        ) : null}
       </header>
 
       <aside className="library-rail" aria-label="Project library">

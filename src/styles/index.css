@@ -82,6 +82,18 @@
   --ease: cubic-bezier(0.2, 0, 0, 1);
   --duration-fast: 130ms;
 
+  /*
+   * Three control heights, because a bar holding four heights reads as an accident.
+   *
+   * The hub header put a 19px wordmark, a 32px search field, a 53px status pill and two 40px
+   * buttons on one 52px line — the pill was taller than the bar containing it — and the five
+   * of them overflowed a 900px window by 62px. Everything that sits in a bar is now one
+   * height; only page-level and dialog buttons are taller.
+   */
+  --bar-h: 52px;         /* the header row, previously a literal in three shells */
+  --control-h: 32px;     /* anything in a bar */
+  --control-h-lg: 40px;  /* page and dialog buttons, landing calls to action */
+
   --weight-normal: 400;
   --weight-medium: 550;
   --weight-strong: 650;
@@ -93,7 +105,7 @@
   --trailing-panel-width: 304px;
   display: grid;
   grid-template-columns: 48px var(--leading-panel-width) minmax(0, 1fr) var(--trailing-panel-width);
-  grid-template-rows: 52px minmax(0, 1fr);
+  grid-template-rows: var(--bar-h) minmax(0, 1fr);
   width: 100%;
   height: 100svh;
   min-width: 320px;
@@ -677,7 +689,7 @@ kbd {
 
 @media (max-width: 1179px) {
   .editor-shell { grid-template-columns: 48px 0 minmax(0, 1fr) 0; }
-  .editor-left-panel, .editor-inspector { position: absolute; z-index: 20; inset-block: 52px 0; width: var(--leading-panel-width); box-shadow: 12px 0 30px oklch(0 0 0 / 0.36); }
+  .editor-left-panel, .editor-inspector { position: absolute; z-index: 20; inset-block: var(--bar-h) 0; width: var(--leading-panel-width); box-shadow: 12px 0 30px oklch(0 0 0 / 0.36); }
   .editor-left-panel { inset-inline-start: 48px; }
   .editor-inspector { inset-inline: auto 0; width: var(--trailing-panel-width); box-shadow: -12px 0 30px oklch(0 0 0 / 0.36); }
   .editor-shell--inspector-leading .editor-inspector { inset-inline: 48px auto; width: var(--leading-panel-width); box-shadow: 12px 0 30px oklch(0 0 0 / 0.36); }
@@ -810,7 +822,7 @@ a {
 .project-hub-shell {
   display: grid;
   grid-template-columns: 208px minmax(560px, 1fr) 372px;
-  grid-template-rows: 52px minmax(0, 1fr);
+  grid-template-rows: var(--bar-h) minmax(0, 1fr);
   min-height: 100vh;
   background: var(--app-bg);
 }
@@ -820,17 +832,38 @@ a {
   inset-block-start: 0;
   z-index: 20;
   grid-column: 1 / -1;
-  display: grid;
-  /* Wordmark, search, WebMCP status, then the two actions. An explicitly sized track per
-   * child, because an extra button placed into an implicit column lands outside the bar. */
-  grid-template-columns: 208px minmax(220px, 320px) minmax(200px, 1fr) auto auto;
+  /*
+   * Three regions, not five tracks.
+   *
+   * This was `grid-template-columns: 208px minmax(220px, 320px) minmax(200px, 1fr) auto auto`,
+   * restated in four media queries, with two of its five children rendered conditionally — so
+   * the tracks collapsed as you typed in the search box and the centred pill moved. A flex row
+   * with one flexible child needs no per-child track and no restatement per breakpoint.
+   */
+  display: flex;
   align-items: center;
-  gap: 16px;
-  min-height: 52px;
-  padding-inline: 20px;
+  gap: 12px;
+  min-height: var(--bar-h);
+  padding-inline: 16px;
   border-block-end: 1px solid var(--border-subtle);
   background: color-mix(in oklch, var(--surface-1) 94%, transparent);
   backdrop-filter: blur(18px);
+}
+
+/* Everything living in a bar takes the bar's height, whatever else it is. */
+.top-bar .button,
+.top-bar .icon-button {
+  min-height: var(--control-h);
+  height: var(--control-h);
+  padding-inline: 12px;
+}
+
+.top-bar__end {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  margin-inline-start: auto;
 }
 
 .wordmark {
@@ -842,11 +875,13 @@ a {
 
 .search-field {
   display: flex;
+  flex: 1 1 220px;
   align-items: center;
-  gap: 9px;
+  gap: 8px;
   min-width: 0;
-  height: 32px;
-  padding-inline: 11px;
+  max-width: 340px;
+  height: var(--control-h);
+  padding-inline: 10px;
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-md);
   background: var(--surface-2);
@@ -868,42 +903,133 @@ a {
   font-size: var(--text-sm);
 }
 
+/* The native clear affordance is inconsistent between browsers and invisible on a dark field. */
+.search-field input::-webkit-search-cancel-button { display: none; }
+
+.search-field__clear {
+  display: grid;
+  flex: none;
+  place-items: center;
+  inline-size: 18px;
+  block-size: 18px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-round);
+  background: var(--surface-3);
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.search-field__clear:hover { background: var(--border-strong); color: var(--text-primary); }
+
 .search-field input::placeholder {
   color: var(--text-tertiary);
 }
 
-.webmcp-status {
-  justify-self: center;
+.webmcp-chip {
   display: inline-flex;
+  flex: none;
   align-items: center;
-  gap: 8px;
-  min-height: 32px;
-  padding: 6px 14px;
-  border: 1px solid transparent;
-  border-radius: var(--radius-round);
-  background:
-    linear-gradient(var(--surface-2), var(--surface-2)) padding-box,
-    linear-gradient(90deg, var(--agent-a), var(--agent-b)) border-box;
-  color: var(--text-primary);
+  gap: 7px;
+  height: var(--control-h);
+  padding-inline: 10px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--surface-2);
+  color: var(--text-secondary);
   font-size: var(--text-xs);
-  font-weight: var(--weight-strong);
+  font-weight: var(--weight-medium);
+  white-space: nowrap;
   cursor: default;
 }
 
-.webmcp-status svg {
-  color: var(--agent-a);
-}
+.webmcp-chip svg { flex: none; }
+.webmcp-chip[data-state="ready"] svg { color: var(--agent-a); }
+.webmcp-chip[data-state="manual"] svg { color: var(--text-tertiary); }
 
-.webmcp-status small {
+.webmcp-chip__count {
+  padding-inline: 5px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-3);
   color: var(--text-tertiary);
   font-size: var(--text-2xs);
+  font-variant-numeric: tabular-nums;
+}
+
+/*
+ * A name for the seventy-five icon buttons that only ever had one for screen readers.
+ *
+ * The bubble is `aria-hidden` and inert: the control keeps its own `aria-label`, so nothing
+ * here reaches the accessibility tree twice. It is a sibling of the trigger rather than a
+ * portal, because agent focus resolves a control to its Inspector group through
+ * `element.closest("[data-inspector-section]")`, and a portalled control has no such ancestor.
+ */
+.tooltip-host {
+  position: relative;
+  display: inline-flex;
+}
+
+.tooltip {
+  position: absolute;
+  z-index: 60;
+  inset-block-start: calc(100% + 6px);
+  inset-inline-start: 50%;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: max-content;
+  max-width: 240px;
+  padding: 5px 8px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--surface-3);
+  box-shadow: 0 6px 16px oklch(0 0 0 / 0.34);
+  color: var(--text-primary);
+  font-size: var(--text-2xs);
   font-weight: var(--weight-medium);
+  line-height: 1.35;
+  text-align: start;
+  white-space: normal;
+  translate: -50% 0;
+  /* Not `display: none`, so the label can fade rather than appear mid-pointer-travel. */
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity var(--duration-fast) var(--ease), visibility var(--duration-fast);
+  pointer-events: none;
+}
+
+.tooltip-host[data-placement="block-start"] .tooltip { inset-block: auto calc(100% + 6px); }
+.tooltip-host[data-placement="inline-end"] .tooltip {
+  inset-block-start: 50%;
+  inset-inline-start: calc(100% + 6px);
+  translate: 0 -50%;
+}
+
+.tooltip-host:hover .tooltip,
+.tooltip-host:has(:focus-visible) .tooltip {
+  opacity: 1;
+  visibility: visible;
+  /* Long enough that crossing a row of buttons does not flash five labels on the way past. */
+  transition-delay: 320ms;
+}
+
+.tooltip kbd { flex: none; }
+
+/*
+ * `aria-disabled` rather than `disabled`, so the reason can be read.
+ *
+ * A disabled button fires no pointer events and takes no focus, which is why the fifteen
+ * `title` attributes explaining why something was unavailable had never been seen by anyone.
+ */
+[aria-disabled="true"] {
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 
 .button,
 .icon-button,
 .rail-item,
-.webmcp-status,
+.webmcp-chip,
 .project-actions__menu button {
   transition-property: background-color, border-color, color, opacity, transform;
   transition-duration: var(--duration-fast);
@@ -915,7 +1041,7 @@ a {
   align-items: center;
   justify-content: center;
   gap: 8px;
-  min-height: 40px;
+  min-height: var(--control-h-lg);
   padding-inline: 15px;
   border: 1px solid transparent;
   border-radius: var(--radius-md);
@@ -980,10 +1106,6 @@ a {
 
 .button--danger:hover:not(:disabled) {
   background: color-mix(in oklch, var(--danger) 24%, var(--surface-2));
-}
-
-.top-bar__primary {
-  justify-self: end;
 }
 
 .icon-button {
@@ -1688,7 +1810,7 @@ dialog {
   grid-template-columns: 40px minmax(0, 1fr) auto auto auto;
   align-items: center;
   gap: 12px;
-  min-height: 52px;
+  min-height: var(--bar-h);
   padding-inline: 12px 20px;
   border-block-end: 1px solid var(--border-subtle);
   background: var(--surface-1);
@@ -1758,7 +1880,7 @@ dialog {
 }
 
 .workspace-main {
-  min-height: calc(100vh - 52px);
+  min-height: calc(100vh - var(--bar-h));
   padding: 32px;
   outline: 0;
 }
@@ -2303,10 +2425,6 @@ dialog {
     grid-template-columns: 192px minmax(0, 1fr);
   }
 
-  .top-bar {
-    grid-template-columns: 176px minmax(200px, 300px) minmax(160px, 1fr) auto auto;
-  }
-
   .project-detail {
     display: none;
   }
@@ -2334,20 +2452,24 @@ dialog {
     display: block;
   }
 
-  .top-bar {
-    position: sticky;
-    display: grid;
-    /* The WebMCP badge is hidden at this width, so four children remain. */
-    grid-template-columns: auto minmax(160px, 1fr) auto auto;
-  }
+  /*
+     Labels go, controls stay.
+     
+     The buttons kept their width by dropping out of the bar entirely, which is how "Load
+     sample" and "New project" became unreachable from the header on a tablet. Shedding the
+     word and keeping the glyph costs 70px each and costs nobody the action. */
+  .top-bar .button span { display: none; }
+  .top-bar .button { padding-inline: 9px; }
 
-  .webmcp-status {
-    display: none;
-  }
+  /*
+     The chip is the one thing here that shortens instead of disappearing: it drops its tool
+     count and keeps its dot, because whether an agent can drive the page is the fact this
+     product is about. */
+  .webmcp-chip__count { display: none; }
 
   .library-rail {
     position: sticky;
-    inset-block-start: 52px;
+    inset-block-start: var(--bar-h);
     z-index: 15;
     display: block;
     padding: 8px 16px;
@@ -2398,14 +2520,18 @@ dialog {
 
 @media (max-width: 599px) {
   .top-bar {
-    grid-template-columns: 1fr auto;
-    gap: 10px;
+    flex-wrap: wrap;
+    gap: 8px 10px;
     min-height: auto;
-    padding: 10px 16px;
+    padding: 8px 12px;
   }
 
-  /* Only one action fits on a phone, and it is the one that gets you started. */
-  .top-bar__sample { display: none; }
+  /* The search box takes the second row rather than squeezing everything on the first. */
+  .search-field {
+    order: 1;
+    flex-basis: 100%;
+    max-width: none;
+  }
 
   .search-field {
     grid-column: 1 / -1;
@@ -2421,9 +2547,6 @@ dialog {
     font-size: var(--text-lg);
   }
 
-  .top-bar__primary {
-    display: none;
-  }
 
   .library-rail {
     position: static;
@@ -2666,7 +2789,7 @@ dialog {
   }
 
   .project-row--selected,
-  .webmcp-status,
+  .webmcp-chip,
   .dialog,
   .inline-notice {
     border-color: CanvasText;
@@ -3487,7 +3610,7 @@ dialog {
  */
 .landing {
   display: grid;
-  grid-template-rows: 52px minmax(0, 1fr) auto;
+  grid-template-rows: var(--bar-h) minmax(0, 1fr) auto;
   min-height: 100svh;
   background:
     radial-gradient(120% 80% at 78% -10%, color-mix(in oklch, var(--agent-b) 14%, transparent), transparent 60%),
