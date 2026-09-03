@@ -217,4 +217,107 @@ describe("ProjectService", () => {
     await expect(service.getProject(created.id)).rejects.toMatchObject({ code: "PROJECT_NOT_FOUND" });
     await expect(service.listProjects()).resolves.toEqual([]);
   });
+  /**
+   * `SH-014`. Undo walks backwards from the head, so it never has to ask whether the step it
+   * removes still makes sense. Reverting from the middle does: later work may have been built
+   * on the very state being removed. These cover the safe case, the refusal, and the rule that
+   * history is appended to rather than rewritten.
+   */
+  describe("selective revert", () => {
+    async function projectWithThreeRenames() {
+      const project = await service.createProject({ name: "Revert source", kind: "photo" });
+      await service.renameProject({ projectId: project.id, name: "Second" });
+      await service.renameProject({ projectId: project.id, name: "Third" });
+      return project;
+    }
+
+    it("reverts a change that nothing later depends on", async () => {
+      const project = await service.createProject({ name: "Independent", kind: "photo" });
+      await service.createPhotoDocument({ projectId: project.id, widthPx: 800, heightPx: 600, resolutionPpi: 72, orientation: "landscape", background: { type: "solid", color: "#ffffff" } });
+      const history = await service.getProjectHistory(project.id);
+      const documentTransaction = history.transactions.find((t) => t.summary.includes("image document"))!;
+
+      const plan = await service.planRevert(project.id, documentTransaction.id);
+      expect(plan.safe).toBe(true);
+      expect(plan.conflicts).toEqual([]);
+      expect(plan.operations.length).toBeGreaterThan(0);
+
+      const result = await service.revertTransaction(project.id, documentTransaction.id);
+      expect(result.headRevision.state.photoDocument).toBeNull();
+      expect(result.transaction.summary).toContain("Reverted");
+      expect(result.transaction.targetTransactionId).toBe(documentTransaction.id);
+    });
+
+    it("appends the revert rather than rewriting what happened", async () => {
+      const project = await service.createProject({ name: "Append only", kind: "photo" });
+      await service.createPhotoDocument({ projectId: project.id, widthPx: 640, heightPx: 480, resolutionPpi: 72, orientation: "landscape", background: { type: "solid", color: "#ffffff" } });
+      const before = await service.getProjectHistory(project.id);
+      const target = before.transactions.find((t) => t.summary.includes("image document"))!;
+
+      const after = (await service.revertTransaction(project.id, target.id)).headRevision;
+      const history = await service.getProjectHistory(project.id);
+
+      // The original entry is still there, and a new one records the reversal.
+      expect(history.transactions.find((t) => t.id === target.id)).toBeTruthy();
+      expect(history.transactions.length).toBe(before.transactions.length + 1);
+      expect(after.id).not.toBe(before.headRevision.id);
+    });
+
+    it("refuses when later work was built on the same object, and names it", async () => {
+      const project = await projectWithThreeRenames();
+      const history = await service.getProjectHistory(project.id);
+      const firstRename = history.transactions.find((t) => t.summary.includes("Second"))!;
+
+      const plan = await service.planRevert(project.id, firstRename.id);
+      expect(plan.safe).toBe(false);
+      expect(plan.conflicts.length).toBeGreaterThan(0);
+      expect(plan.conflicts[0].summary).toContain("Third");
+      expect(plan.reason).toContain("Revert");
+
+      await expect(service.revertTransaction(project.id, firstRename.id))
+        .rejects.toMatchObject({ code: "HISTORY_CONFLICT" });
+
+      // The refusal changed nothing.
+      const after = await service.getProjectHistory(project.id);
+      expect(after.headRevision.id).toBe(history.headRevision.id);
+      expect(after.headRevision.state.name).toBe("Third");
+    });
+
+    it("refuses to revert the change that created the project", async () => {
+      const project = await service.createProject({ name: "Genesis", kind: "photo" });
+      const history = await service.getProjectHistory(project.id);
+      const plan = await service.planRevert(project.id, history.transactions[0].id);
+      expect(plan.safe).toBe(false);
+      expect(plan.reason).toContain("created the project");
+    });
+
+    it("refuses to revert an Undo entry, which records no edit of its own", async () => {
+      const project = await service.createProject({ name: "Undo entry", kind: "photo" });
+      await service.createPhotoDocument({ projectId: project.id, widthPx: 320, heightPx: 240, resolutionPpi: 72, orientation: "landscape", background: { type: "solid", color: "#ffffff" } });
+      await service.undoProject(project.id);
+      const history = await service.getProjectHistory(project.id);
+      const undoEntry = history.transactions.find((t) => t.kind === "undo")!;
+      const plan = await service.planRevert(project.id, undoEntry.id);
+      expect(plan.safe).toBe(false);
+      expect(plan.reason).toContain("Undo");
+    });
+
+    it("reports an unknown transaction rather than guessing", async () => {
+      const project = await service.createProject({ name: "Missing", kind: "photo" });
+      await expect(service.planRevert(project.id, "transaction-does-not-exist"))
+        .rejects.toMatchObject({ code: "HISTORY_NOT_AVAILABLE" });
+    });
+
+    it("refuses a revert planned against a revision the project has moved past", async () => {
+      const project = await service.createProject({ name: "Stale", kind: "photo" });
+      await service.createPhotoDocument({ projectId: project.id, widthPx: 800, heightPx: 600, resolutionPpi: 72, orientation: "landscape", background: { type: "solid", color: "#ffffff" } });
+      const stale = (await service.getProjectHistory(project.id)).headRevision.id;
+      const target = (await service.getProjectHistory(project.id)).transactions
+        .find((t) => t.summary.includes("image document"))!;
+      await service.renameProject({ projectId: project.id, name: "Moved on" });
+
+      await expect(service.revertTransaction(project.id, target.id, { expectedRevisionId: stale }))
+        .rejects.toMatchObject({ code: "HISTORY_CONFLICT" });
+    });
+  });
 });

@@ -11,6 +11,8 @@ import {
   HISTORY_SCHEMA_VERSION,
   applyProjectOperations,
   invertProjectOperations,
+  planSelectiveRevert,
+  type SelectiveRevertPlan,
   projectActorSchema,
   replayProjectOperations,
   type ProjectActor,
@@ -29,12 +31,26 @@ import {
   type RecoverableProjectSummary,
 } from "../domain/project-persistence";
 import { ProjectError, toProjectError } from "../domain/project-error";
+import type { Swatch } from "../domain/vector";
+import type { CatalogueEntry, Collection } from "../domain/catalogue";
+import type { Collaborator, Comment, Lock, Share, VersionStack } from "../domain/review";
+
+/** The five review lists, moved together because a review pass touches several at once. */
+export interface ReviewState {
+  collaborators: Collaborator[];
+  comments: Comment[];
+  versionStacks: VersionStack[];
+  locks: Lock[];
+  shares: Share[];
+}
 import {
   PHOTO_DOCUMENT_SCHEMA_VERSION,
   createPhotoDocumentInputSchema,
   type CreatePhotoDocumentInput,
   type PhotoDocument,
 } from "../domain/photo-document";
+import { assetReferenceSchema, type AssetReference } from "../domain/asset";
+import type { Layer } from "../domain/layer";
 import type { ProjectHistorySnapshot, ProjectRepository } from "../data/project-repository";
 
 export interface ProjectServiceOptions {
@@ -52,6 +68,14 @@ export interface ProjectServiceOptions {
 export interface ProjectCommandContext {
   actor?: ProjectActor;
   intent?: string;
+  /**
+   * The revision the caller believes it is editing.
+   *
+   * Carried on the shared context so an optimistic-concurrency check is one implementation
+   * both the interface and WebMCP go through, rather than a check the agent path performs
+   * and the interface path skips.
+   */
+  expectedRevisionId?: string;
 }
 
 export interface ProjectMutationResult extends ProjectHistorySnapshot {
@@ -73,6 +97,8 @@ export interface ProjectLifecycleService {
 
 export interface ProjectHistoryService {
   getProjectHistory(projectId: string): Promise<ProjectHistorySnapshot>;
+  listRevisions?(projectId: string, limit?: number): Promise<import("../domain/project-history").ProjectRevision[]>;
+  getRevision?(revisionId: string): Promise<import("../domain/project-history").ProjectRevision>;
   undoProject(projectId: string, context?: ProjectCommandContext): Promise<ProjectMutationResult>;
   redoProject(projectId: string, context?: ProjectCommandContext): Promise<ProjectMutationResult>;
 }
@@ -113,7 +139,22 @@ interface PendingAutosave {
   reject: (error: unknown) => void;
 }
 
+/**
+ * The asset-layer callbacks `ProjectService` needs after an operation that changes which
+ * assets a project references or which project owns them.
+ */
+export interface SourceReconciler {
+  /** Makes runtime asset records match the restored head revision. Never deletes bytes. */
+  reconcile: (projectId: string) => Promise<unknown>;
+  /** Gives a copied project its own records over the same originals. */
+  cloneAssets: (fromProjectId: string, toProjectId: string) => Promise<{ cloned: number; warnings: string[] }>;
+  /** Drops a project's claim on its originals, deleting bytes no project references. */
+  releaseSources: (projectId: string) => Promise<unknown>;
+}
+
 export class ProjectService implements ProjectLifecycleService, ProjectHistoryService, ProjectPersistenceService, ProjectAutomationService, PhotoDocumentService {
+  private sourceReconciler: SourceReconciler | null = null;
+
   private readonly now: () => Date;
   private readonly createProjectId: () => string;
   private readonly createRevisionId: () => string;
@@ -161,6 +202,9 @@ export class ProjectService implements ProjectLifecycleService, ProjectHistorySe
     );
   }
   getProposal(proposalId: string): Promise<ProjectProposal> { return this.repository.getProposal(proposalId); }
+  /** Ordered revisions, so a comparison can render a real earlier state rather than a guess. */
+  listRevisions(projectId: string, limit = 200) { return this.repository.listRevisions(projectId, limit); }
+  getRevision(revisionId: string) { return this.repository.getRevision(revisionId); }
   inspectTransaction(transactionId: string): Promise<ProjectTransaction> { return this.repository.getTransaction(transactionId); }
   subscribeProject(projectId: string, listener: (result: ProjectMutationResult) => void): () => void {
     const listeners = this.projectListeners.get(projectId) ?? new Set();
@@ -170,6 +214,16 @@ export class ProjectService implements ProjectLifecycleService, ProjectHistorySe
       listeners.delete(listener);
       if (!listeners.size) this.projectListeners.delete(projectId);
     };
+  }
+
+  /**
+   * Lets the asset layer keep runtime media state in step with history without this service
+   * depending on it. History decides which assets a project references; only the asset layer
+   * knows whether their bytes are reachable, and the two have to agree after every operation
+   * that rewrites the head revision.
+   */
+  registerSourceReconciler(reconciler: SourceReconciler): void {
+    this.sourceReconciler = reconciler;
   }
 
   async createProject(input: CreateProjectInput, context: ProjectCommandContext = {}): Promise<ProjectRecord> {
@@ -226,6 +280,8 @@ export class ProjectService implements ProjectLifecycleService, ProjectHistorySe
       const document: PhotoDocument = {
         id: this.createDocumentId(),
         schemaVersion: PHOTO_DOCUMENT_SCHEMA_VERSION,
+        layers: [],
+      swatches: [],
         widthPx: parsed.widthPx,
         heightPx: parsed.heightPx,
         resolutionPpi: parsed.resolutionPpi,
@@ -249,10 +305,309 @@ export class ProjectService implements ProjectLifecycleService, ProjectHistorySe
     } catch (error) { throw toProjectError(error); }
   }
 
+  /**
+   * Asset registration is a project mutation like any other, so a dragged file and a WebMCP
+   * import produce the same revision, transaction, summary, and Undo token.
+   */
+  async registerAsset(
+    input: { projectId: string; asset: AssetReference; expectedRevisionId?: string },
+    context: ProjectCommandContext = {},
+  ): Promise<ProjectMutationResult> {
+    try {
+      const asset = assetReferenceSchema.parse(input.asset);
+      const history = await this.repository.getHistory(input.projectId);
+      if (input.expectedRevisionId && input.expectedRevisionId !== history.headRevision.id) {
+        throw new ProjectError("HISTORY_CONFLICT", "The project changed before this asset could be registered. Inspect the latest revision and try again.");
+      }
+      const operation: ProjectOperation = {
+        id: this.createOperationId(), schemaVersion: HISTORY_SCHEMA_VERSION, type: "asset.register",
+        projectId: input.projectId, asset,
+      };
+      return await this.commitOperations(history, [operation], {
+        actor: this.parseActor(context),
+        intent: context.intent ?? `Add “${asset.name}” to the project.`,
+        summary: `Added “${asset.name}” (${asset.widthPx} × ${asset.heightPx}).`,
+        kind: "mutation", targetTransactionId: null, undoable: true,
+        undoTransactionIds: [...history.project.undoTransactionIds], redoTransactionIds: [],
+        affectedIds: [history.project.id, asset.id],
+        normalizedParameters: { assetId: asset.id, mediaType: asset.mediaType },
+      });
+    } catch (error) { throw toProjectError(error); }
+  }
+
+  async removeAsset(
+    input: { projectId: string; asset: AssetReference },
+    context: ProjectCommandContext = {},
+  ): Promise<ProjectMutationResult> {
+    try {
+      const asset = assetReferenceSchema.parse(input.asset);
+      const history = await this.repository.getHistory(input.projectId);
+      this.assertExpectedRevision(history, context);
+      const operation: ProjectOperation = {
+        id: this.createOperationId(), schemaVersion: HISTORY_SCHEMA_VERSION, type: "asset.remove",
+        projectId: input.projectId, asset,
+      };
+      return await this.commitOperations(history, [operation], {
+        actor: this.parseActor(context),
+        intent: context.intent ?? `Remove “${asset.name}” from the project.`,
+        summary: `Removed “${asset.name}” from the project.`,
+        kind: "mutation", targetTransactionId: null, undoable: true,
+        undoTransactionIds: [...history.project.undoTransactionIds], redoTransactionIds: [],
+        affectedIds: [history.project.id, asset.id],
+        normalizedParameters: { assetId: asset.id },
+      });
+    } catch (error) { throw toProjectError(error); }
+  }
+
+  /**
+   * The logical asset ID is deliberately preserved so every edit that points at this asset
+   * survives the source change. Compatibility losses travel with the transaction as warnings.
+   */
+  async replaceAssetSource(
+    input: { projectId: string; fromAsset: AssetReference; toAsset: AssetReference; warnings?: string[] },
+    context: ProjectCommandContext = {},
+  ): Promise<ProjectMutationResult> {
+    try {
+      const fromAsset = assetReferenceSchema.parse(input.fromAsset);
+      const toAsset = assetReferenceSchema.parse(input.toAsset);
+      if (fromAsset.id !== toAsset.id) {
+        throw new ProjectError("INVALID_INPUT", "Replacing a source must keep the same asset identity.", { fieldPath: "toAsset.id" });
+      }
+      const history = await this.repository.getHistory(input.projectId);
+      this.assertExpectedRevision(history, context);
+      const operation: ProjectOperation = {
+        id: this.createOperationId(), schemaVersion: HISTORY_SCHEMA_VERSION, type: "asset.replace_source",
+        projectId: input.projectId, fromAsset, toAsset,
+      };
+      return await this.commitOperations(history, [operation], {
+        actor: this.parseActor(context),
+        intent: context.intent ?? `Replace the source for “${fromAsset.name}”.`,
+        summary: `Replaced the source for “${toAsset.name}”. Existing edits were preserved.`,
+        kind: "mutation", targetTransactionId: null, undoable: true,
+        undoTransactionIds: [...history.project.undoTransactionIds], redoTransactionIds: [],
+        affectedIds: [history.project.id, toAsset.id],
+        warnings: input.warnings ?? [],
+        normalizedParameters: { assetId: toAsset.id, contentHash: toAsset.contentHash },
+      });
+    } catch (error) { throw toProjectError(error); }
+  }
+
+  /**
+   * Commits a complete layer-tree change. Carrying both trees keeps replay and inversion
+   * deterministic without a family of fine-grained operations.
+   */
+  async applyLayers(
+    input: { projectId: string; documentId: string; label: string; fromLayers: Layer[]; toLayers: Layer[]; warnings?: string[] },
+    context: ProjectCommandContext = {},
+  ): Promise<ProjectMutationResult> {
+    try {
+      const history = await this.repository.getHistory(input.projectId);
+      this.assertExpectedRevision(history, context);
+      const operation: ProjectOperation = {
+        id: this.createOperationId(), schemaVersion: HISTORY_SCHEMA_VERSION, type: "layers.apply",
+        projectId: input.projectId, documentId: input.documentId, label: input.label,
+        fromLayers: input.fromLayers, toLayers: input.toLayers,
+      };
+      return await this.commitOperations(history, [operation], {
+        actor: this.parseActor(context),
+        intent: context.intent ?? input.label,
+        summary: input.label,
+        kind: "mutation", targetTransactionId: null, undoable: true,
+        undoTransactionIds: [...history.project.undoTransactionIds], redoTransactionIds: [],
+        affectedIds: [history.project.id, input.documentId],
+        warnings: input.warnings ?? [],
+        normalizedParameters: { documentId: input.documentId, layerCount: input.toLayers.length },
+      });
+    } catch (error) { throw toProjectError(error); }
+  }
+
+  /**
+   * The document's named colours and gradients.
+   *
+   * Separate from a layer edit because a swatch belongs to the document: changing one changes
+   * every shape, stroke, and fill using it, which is the reason to have swatches at all.
+   */
+  async applySwatches(
+    input: { projectId: string; documentId: string; label: string; fromSwatches: Swatch[]; toSwatches: Swatch[] },
+    context: ProjectCommandContext = {},
+  ): Promise<ProjectMutationResult> {
+    try {
+      const history = await this.repository.getHistory(input.projectId);
+      this.assertExpectedRevision(history, context);
+      const operation: ProjectOperation = {
+        id: this.createOperationId(), schemaVersion: HISTORY_SCHEMA_VERSION, type: "document.swatches",
+        projectId: input.projectId, documentId: input.documentId, label: input.label,
+        fromSwatches: input.fromSwatches, toSwatches: input.toSwatches,
+      };
+      return await this.commitOperations(history, [operation], {
+        actor: this.parseActor(context),
+        intent: context.intent ?? input.label,
+        summary: input.label,
+        kind: "mutation", targetTransactionId: null, undoable: true,
+        undoTransactionIds: [...history.project.undoTransactionIds], redoTransactionIds: [],
+        affectedIds: [history.project.id, input.documentId],
+        warnings: [],
+        normalizedParameters: { documentId: input.documentId, swatchCount: input.toSwatches.length },
+      });
+    } catch (error) { throw toProjectError(error); }
+  }
+
+  /**
+   * Marking media, and the saved questions about it.
+   *
+   * One command for both because they are the same kind of change — a fact about the media
+   * rather than about the edit — and separating them would give two undo steps to what a
+   * person experiences as one act of organising.
+   */
+  async applyCatalogue(
+    input: {
+      projectId: string; label: string;
+      fromEntries: CatalogueEntry[]; toEntries: CatalogueEntry[];
+      fromCollections: Collection[]; toCollections: Collection[];
+    },
+    context: ProjectCommandContext = {},
+  ): Promise<ProjectMutationResult> {
+    try {
+      const history = await this.repository.getHistory(input.projectId);
+      this.assertExpectedRevision(history, context);
+      const operation: ProjectOperation = {
+        id: this.createOperationId(), schemaVersion: HISTORY_SCHEMA_VERSION, type: "project.catalogue",
+        projectId: input.projectId, label: input.label,
+        fromEntries: input.fromEntries, toEntries: input.toEntries,
+        fromCollections: input.fromCollections, toCollections: input.toCollections,
+      };
+      return await this.commitOperations(history, [operation], {
+        actor: this.parseActor(context),
+        intent: context.intent ?? input.label,
+        summary: input.label,
+        kind: "mutation", targetTransactionId: null, undoable: true,
+        undoTransactionIds: [...history.project.undoTransactionIds], redoTransactionIds: [],
+        affectedIds: [history.project.id],
+        warnings: [],
+        normalizedParameters: {
+          markedCount: input.toEntries.length,
+          collectionCount: input.toCollections.length,
+        },
+      });
+    } catch (error) { throw toProjectError(error); }
+  }
+
+  /**
+   * Review state: people, comments, version stacks, locks, and shares.
+   *
+   * One command for all five, because a review pass touches several at once and should be one
+   * thing to undo — resolving a comment and marking a version approved is one act, not two.
+   */
+  async applyReview(
+    input: {
+      projectId: string; label: string;
+      from: ReviewState; to: ReviewState;
+    },
+    context: ProjectCommandContext = {},
+  ): Promise<ProjectMutationResult> {
+    try {
+      const history = await this.repository.getHistory(input.projectId);
+      this.assertExpectedRevision(history, context);
+      const operation: ProjectOperation = {
+        id: this.createOperationId(), schemaVersion: HISTORY_SCHEMA_VERSION, type: "project.review",
+        projectId: input.projectId, label: input.label,
+        from: input.from, to: input.to,
+      };
+      return await this.commitOperations(history, [operation], {
+        actor: this.parseActor(context),
+        intent: context.intent ?? input.label,
+        summary: input.label,
+        kind: "mutation", targetTransactionId: null, undoable: true,
+        undoTransactionIds: [...history.project.undoTransactionIds], redoTransactionIds: [],
+        affectedIds: [history.project.id],
+        warnings: [],
+        normalizedParameters: {
+          commentCount: input.to.comments.length,
+          collaboratorCount: input.to.collaborators.length,
+        },
+      });
+    } catch (error) { throw toProjectError(error); }
+  }
+
+  async resizeDocument(
+    input: {
+      projectId: string; documentId: string; mode: "canvas" | "image";
+      fromWidthPx: number; fromHeightPx: number; toWidthPx: number; toHeightPx: number;
+      fromLayers: Layer[]; toLayers: Layer[];
+      resampleAlgorithm?: "nearest" | "bilinear" | "lanczos3" | "browser-smooth";
+    },
+    context: ProjectCommandContext = {},
+  ): Promise<ProjectMutationResult> {
+    try {
+      const history = await this.repository.getHistory(input.projectId);
+      this.assertExpectedRevision(history, context);
+      const operation: ProjectOperation = {
+        id: this.createOperationId(), schemaVersion: HISTORY_SCHEMA_VERSION, type: "document.resize",
+        projectId: input.projectId, documentId: input.documentId, mode: input.mode,
+        fromWidthPx: input.fromWidthPx, fromHeightPx: input.fromHeightPx,
+        toWidthPx: input.toWidthPx, toHeightPx: input.toHeightPx,
+        fromLayers: input.fromLayers, toLayers: input.toLayers,
+        resampleAlgorithm: input.resampleAlgorithm ?? "lanczos3",
+      };
+      const label = input.mode === "canvas"
+        ? `Resize canvas to ${input.toWidthPx} × ${input.toHeightPx}`
+        : `Resample image to ${input.toWidthPx} × ${input.toHeightPx}`;
+      return await this.commitOperations(history, [operation], {
+        actor: this.parseActor(context),
+        intent: context.intent ?? label,
+        summary: label,
+        kind: "mutation", targetTransactionId: null, undoable: true,
+        undoTransactionIds: [...history.project.undoTransactionIds], redoTransactionIds: [],
+        affectedIds: [history.project.id, input.documentId],
+        normalizedParameters: {
+          mode: input.mode, widthPx: input.toWidthPx, heightPx: input.toHeightPx,
+          resampleAlgorithm: input.mode === "image" ? operation.resampleAlgorithm : null,
+        },
+      });
+    } catch (error) { throw toProjectError(error); }
+  }
+
+  /**
+   * Commits a whole organization change: bins, membership, storyboard positions, subclips,
+   * and source markers, using the same before/after pattern as layers and sequences.
+   */
+  async applyOrganization(
+    input: {
+      projectId: string;
+      label: string;
+      from: { bins: unknown[]; items: unknown[]; subclips: unknown[]; sourceMarkers: unknown[] };
+      to: { bins: unknown[]; items: unknown[]; subclips: unknown[]; sourceMarkers: unknown[] };
+      warnings?: string[];
+    },
+    context: ProjectCommandContext = {},
+  ): Promise<ProjectMutationResult> {
+    try {
+      const history = await this.repository.getHistory(input.projectId);
+      this.assertExpectedRevision(history, context);
+      const operation: ProjectOperation = {
+        id: this.createOperationId(), schemaVersion: HISTORY_SCHEMA_VERSION, type: "organization.apply",
+        projectId: input.projectId, label: input.label,
+        fromBins: input.from.bins as never, toBins: input.to.bins as never,
+        fromItems: input.from.items as never, toItems: input.to.items as never,
+        fromSubclips: input.from.subclips as never, toSubclips: input.to.subclips as never,
+        fromSourceMarkers: input.from.sourceMarkers as never, toSourceMarkers: input.to.sourceMarkers as never,
+      };
+      return await this.commitOperations(history, [operation], {
+        actor: this.parseActor(context), intent: context.intent ?? input.label, summary: input.label,
+        kind: "mutation", targetTransactionId: null, undoable: true,
+        undoTransactionIds: [...history.project.undoTransactionIds], redoTransactionIds: [],
+        affectedIds: [history.project.id],
+        warnings: input.warnings ?? [],
+        normalizedParameters: { binCount: input.to.bins.length, subclipCount: input.to.subclips.length },
+      });
+    } catch (error) { throw toProjectError(error); }
+  }
+
   async renameProject(input: RenameProjectInput, context: ProjectCommandContext = {}): Promise<ProjectMutationResult> {
     try {
       const parsed = renameProjectInputSchema.parse(input);
       const history = await this.repository.getHistory(parsed.projectId);
+      this.assertExpectedRevision(history, context);
       if (history.headRevision.state.name === parsed.name) {
         throw new ProjectError("INVALID_INPUT", "Enter a different project name.", { fieldPath: "name" });
       }
@@ -282,6 +637,7 @@ export class ProjectService implements ProjectLifecycleService, ProjectHistorySe
   async deleteProject(projectId: string, context: ProjectCommandContext = {}): Promise<void> {
     try {
       const history = await this.repository.getHistory(projectId);
+      this.assertExpectedRevision(history, context);
       const operation: ProjectOperation = {
         id: this.createOperationId(), schemaVersion: HISTORY_SCHEMA_VERSION, type: "project.delete", projectId,
         fromStatus: "active", toStatus: "deleted",
@@ -317,6 +673,7 @@ export class ProjectService implements ProjectLifecycleService, ProjectHistorySe
   async createSnapshot(projectId: string, name: string, context: ProjectCommandContext = {}): Promise<ProjectMutationResult> {
     try {
       const history = await this.repository.getHistory(projectId);
+      this.assertExpectedRevision(history, context);
       const parsedName = projectNameSchema.parse(name);
       const snapshotId = this.createSnapshotId();
       const operation: ProjectOperation = {
@@ -338,6 +695,7 @@ export class ProjectService implements ProjectLifecycleService, ProjectHistorySe
       const [history, persistence] = await Promise.all([
         this.repository.getHistory(projectId), this.repository.getPersistence(projectId),
       ]);
+      this.assertExpectedRevision(history, context);
       if (!persistence.hasRecoverableDraft) {
         throw new ProjectError("HISTORY_NOT_AVAILABLE", "This project has no recoverable draft.");
       }
@@ -346,18 +704,24 @@ export class ProjectService implements ProjectLifecycleService, ProjectHistorySe
         id: this.createOperationId(), schemaVersion: HISTORY_SCHEMA_VERSION, type: "project.restore", projectId,
         sourceRevisionId: durable.id, fromState: history.headRevision.state, toState: durable.state,
       };
-      return await this.commitOperations(history, [operation], {
+      const result = await this.commitOperations(history, [operation], {
         actor: this.parseActor(context), intent: context.intent ?? "Open the last durable project revision.",
         summary: `Restored the last durable revision of “${history.project.name}”.`, kind: "mutation",
         targetTransactionId: null, undoable: true, undoTransactionIds: [...history.project.undoTransactionIds],
         redoTransactionIds: [], normalizedParameters: { projectId, durableRevisionId: durable.id }, durabilityMode: "explicit",
       });
+      // Restoring an older revision changes which assets — and which source revisions of
+      // them — the project references. Runtime media state has to follow, or preview and
+      // export would keep reading the bytes the user just moved away from.
+      await this.sourceReconciler?.reconcile(projectId).catch(() => undefined);
+      return result;
     } catch (error) { throw toProjectError(error); }
   }
 
   async undoProject(projectId: string, context: ProjectCommandContext = {}): Promise<ProjectMutationResult> {
     try {
       const history = await this.repository.getHistory(projectId);
+      this.assertExpectedRevision(history, context);
       const targetTransactionId = history.project.undoTransactionIds.at(-1);
       if (!targetTransactionId) throw new ProjectError("HISTORY_NOT_AVAILABLE", "There is no project change to undo.");
       const target = history.transactions.find((transaction) => transaction.id === targetTransactionId);
@@ -365,18 +729,23 @@ export class ProjectService implements ProjectLifecycleService, ProjectHistorySe
         throw new ProjectError("HISTORY_CORRUPTED", "The next Undo transaction is missing or cannot be safely reverted.");
       }
       const operations = invertProjectOperations(target.operations, this.createOperationId);
-      return await this.commitOperations(history, operations, {
+      const result = await this.commitOperations(history, operations, {
         actor: this.parseActor(context), intent: context.intent ?? `Undo: ${target.summary}`, summary: `Undid: ${target.summary}`,
         kind: "undo", targetTransactionId: target.id, undoable: false,
         undoTransactionIds: history.project.undoTransactionIds.slice(0, -1),
         redoTransactionIds: [...history.project.redoTransactionIds, target.id],
         normalizedParameters: { projectId, transactionId: target.id },
       });
+      // An undone import or relink must give back the earlier media state, not just the
+      // earlier document.
+      await this.sourceReconciler?.reconcile(projectId).catch(() => undefined);
+      return result;
     } catch (error) { throw toProjectError(error); }
   }
 
   async undoTransaction(projectId: string, transactionId: string, context: ProjectCommandContext = {}): Promise<ProjectMutationResult> {
     const history = await this.repository.getHistory(projectId);
+    this.assertExpectedRevision(history, context);
     if (history.project.undoTransactionIds.at(-1) !== transactionId) {
       throw new ProjectError("HISTORY_CONFLICT", "This transaction is not the latest safe Undo target. Undo newer changes first.");
     }
@@ -386,6 +755,7 @@ export class ProjectService implements ProjectLifecycleService, ProjectHistorySe
   async redoProject(projectId: string, context: ProjectCommandContext = {}): Promise<ProjectMutationResult> {
     try {
       const history = await this.repository.getHistory(projectId);
+      this.assertExpectedRevision(history, context);
       const targetTransactionId = history.project.redoTransactionIds.at(-1);
       if (!targetTransactionId) throw new ProjectError("HISTORY_NOT_AVAILABLE", "There is no project change to redo.");
       const target = history.transactions.find((transaction) => transaction.id === targetTransactionId);
@@ -393,13 +763,114 @@ export class ProjectService implements ProjectLifecycleService, ProjectHistorySe
         throw new ProjectError("HISTORY_CORRUPTED", "The next Redo transaction is missing or cannot be safely replayed.");
       }
       const operations = replayProjectOperations(target.operations, this.createOperationId);
-      return await this.commitOperations(history, operations, {
+      const result = await this.commitOperations(history, operations, {
         actor: this.parseActor(context), intent: context.intent ?? `Redo: ${target.summary}`, summary: `Redid: ${target.summary}`,
         kind: "redo", targetTransactionId: target.id, undoable: false,
         undoTransactionIds: [...history.project.undoTransactionIds, target.id],
         redoTransactionIds: history.project.redoTransactionIds.slice(0, -1),
         normalizedParameters: { projectId, transactionId: target.id },
       });
+      await this.sourceReconciler?.reconcile(projectId).catch(() => undefined);
+      return result;
+    } catch (error) { throw toProjectError(error); }
+  }
+
+  /**
+   * Returns the project to the state a named snapshot recorded.
+   *
+   * Like a revert, this is committed forward as a new transaction rather than by moving a
+   * pointer backwards, so the work done since the snapshot stays in the record and can itself
+   * be undone. The ledger names this as the safe fallback when a selective revert is refused.
+   */
+  async restoreSnapshot(
+    projectId: string,
+    snapshotId: string,
+    context: ProjectCommandContext = {},
+  ): Promise<ProjectMutationResult> {
+    try {
+      const [history, persistence] = await Promise.all([
+        this.repository.getHistory(projectId), this.repository.getPersistence(projectId),
+      ]);
+      if (context.expectedRevisionId && context.expectedRevisionId !== history.headRevision.id) {
+        throw new ProjectError("HISTORY_CONFLICT", "The project changed before this snapshot could be restored. Inspect the latest revision and try again.");
+      }
+      const snapshot = persistence.snapshots.find((entry) => entry.id === snapshotId && entry.status === "active");
+      if (!snapshot) {
+        throw new ProjectError("HISTORY_NOT_AVAILABLE", "That snapshot is not available in this project.", { fieldPath: "snapshotId" });
+      }
+      if (snapshot.revisionId === history.headRevision.id) {
+        throw new ProjectError("INVALID_INPUT", `The project is already at “${snapshot.name}”.`, { fieldPath: "snapshotId" });
+      }
+
+      const target = await this.repository.getRevision(snapshot.revisionId);
+      const operation: ProjectOperation = {
+        id: this.createOperationId(), schemaVersion: HISTORY_SCHEMA_VERSION, type: "project.restore",
+        projectId, sourceRevisionId: target.id,
+        fromState: history.headRevision.state, toState: target.state,
+      };
+      const summary = `Restored the snapshot “${snapshot.name}”.`;
+      const result = await this.commitOperations(history, [operation], {
+        actor: this.parseActor(context), intent: context.intent ?? summary, summary,
+        kind: "mutation", targetTransactionId: null, undoable: true,
+        undoTransactionIds: [...history.project.undoTransactionIds], redoTransactionIds: [],
+        normalizedParameters: { projectId, snapshotId, revisionId: snapshot.revisionId },
+        durabilityMode: "explicit",
+      });
+      await this.sourceReconciler?.reconcile(projectId).catch(() => undefined);
+      return result;
+    } catch (error) { throw toProjectError(error); }
+  }
+
+  /**
+   * Reports what reverting one past change would do, without doing it.
+   *
+   * Separate from the mutation because a revert from the middle of history can be refused,
+   * and a caller — a person looking at the History panel, or an agent — deserves to see the
+   * refusal and its reasons before committing to anything.
+   */
+  async planRevert(projectId: string, transactionId: string): Promise<SelectiveRevertPlan> {
+    try {
+      const history = await this.repository.getHistory(projectId);
+      return planSelectiveRevert(history.transactions, transactionId, this.createOperationId);
+    } catch (error) { throw toProjectError(error); }
+  }
+
+  /**
+   * Reverts one past change, which need not be the most recent.
+   *
+   * The inverse is committed as a *new* transaction rather than by rewriting the log: history
+   * records what happened, and editing it would make that record untrue. An unsafe revert is
+   * refused with the blocking changes named, never merged silently.
+   */
+  async revertTransaction(
+    projectId: string,
+    transactionId: string,
+    context: ProjectCommandContext = {},
+  ): Promise<ProjectMutationResult & { plan: SelectiveRevertPlan }> {
+    try {
+      const history = await this.repository.getHistory(projectId);
+      if (context.expectedRevisionId && context.expectedRevisionId !== history.headRevision.id) {
+        throw new ProjectError("HISTORY_CONFLICT", "The project changed before this revert could be applied. Inspect the latest revision and try again.");
+      }
+
+      const plan = planSelectiveRevert(history.transactions, transactionId, this.createOperationId);
+      if (!plan.safe) {
+        throw new ProjectError("HISTORY_CONFLICT", plan.reason ?? "That change cannot be reverted on its own.", { fieldPath: "transactionId" });
+      }
+
+      const summary = `Reverted: ${plan.summary}`;
+      const result = await this.commitOperations(history, plan.operations, {
+        actor: this.parseActor(context), intent: context.intent ?? summary, summary,
+        kind: "mutation", targetTransactionId: transactionId,
+        // The revert is itself ordinary work, so it can be undone like anything else.
+        undoable: true,
+        undoTransactionIds: [...history.project.undoTransactionIds],
+        redoTransactionIds: [],
+        affectedIds: plan.affectedIds.length ? plan.affectedIds : [projectId],
+        normalizedParameters: { projectId, revertedTransactionId: transactionId },
+      });
+      await this.sourceReconciler?.reconcile(projectId).catch(() => undefined);
+      return { ...result, plan };
     } catch (error) { throw toProjectError(error); }
   }
 
@@ -453,6 +924,7 @@ export class ProjectService implements ProjectLifecycleService, ProjectHistorySe
         throw new ProjectError("PROPOSAL_EXPIRED", "This proposal expired. Review the latest project and create a new proposal.");
       }
       const history = await this.repository.getHistory(proposal.projectId);
+      this.assertExpectedRevision(history, context);
       if (history.headRevision.id !== proposal.sourceRevisionId) {
         throw new ProjectError("PROPOSAL_STALE", "The project changed after this proposal was prepared. Review the latest revision first.");
       }
@@ -505,7 +977,21 @@ export class ProjectService implements ProjectLifecycleService, ProjectHistorySe
         projectId, schemaVersion: PERSISTENCE_SCHEMA_VERSION, durableRevisionId: revisionId,
         lastExplicitSaveAt: timestamp, lastAutosaveAt: null, recoveryReason: null, recoveryCreatedAt: null,
       };
-      return await this.repository.create({ project, revision, transaction, durability });
+
+      // A copied project must open on its own, so its media library is cloned before the
+      // project row exists. Copying only the document would produce a project whose history
+      // references assets this browser has no runtime record for — an empty library beside a
+      // timeline full of clips. Original bytes are shared by reference, not duplicated.
+      const cloned = await this.sourceReconciler?.cloneAssets(sourceHistory.project.id, projectId);
+      transaction.warnings = [...transaction.warnings, ...(cloned?.warnings ?? [])];
+
+      try {
+        return await this.repository.create({ project, revision, transaction, durability });
+      } catch (error) {
+        // The copy never became a project, so its cloned records must not outlive it.
+        await this.sourceReconciler?.releaseSources(projectId).catch(() => undefined);
+        throw error;
+      }
     } catch (error) { throw toProjectError(error); }
   }
 
@@ -527,6 +1013,25 @@ export class ProjectService implements ProjectLifecycleService, ProjectHistorySe
     });
     const joined = parts.length === 1 ? parts[0] : `${parts.slice(0, -1).join(", ")} and ${parts.at(-1)}`;
     return `${proposed ? "Proposed" : "Applied"}: ${joined}.`;
+  }
+
+  /**
+   * Refuses a command whose caller was reading an older revision.
+   *
+   * The WebMCP tools used to compare the declared revision against the head themselves and
+   * then call the service, which left a window: the interface could commit in between, and
+   * the agent's edit landed on a revision it had never seen. Checking here — against the
+   * history this method is about to commit onto, immediately before it does — closes that
+   * window to the same width as the repository's own compare-and-set.
+   */
+  private assertExpectedRevision(history: ProjectHistorySnapshot, context: ProjectCommandContext): void {
+    if (!context.expectedRevisionId) return;
+    if (context.expectedRevisionId === history.headRevision.id) return;
+    throw new ProjectError(
+      "HISTORY_CONFLICT",
+      `This project has moved on to revision ${history.headRevision.id} since ${context.expectedRevisionId} was read. Inspect the current revision and apply the change again.`,
+      { fieldPath: "expectedRevisionId" },
+    );
   }
 
   private async commitOperations(
