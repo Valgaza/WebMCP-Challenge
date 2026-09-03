@@ -58,6 +58,7 @@ All of it runs in the tab. There is no server, no account, and no upload: `remot
 
 There are no third-party runtime dependencies beyond React, the router, Dexie, Zod and an icon set. Nothing is bundled under a copyleft licence.
 
+
 ## Scope
 
 Estro was built against a 213-feature plan covering both photographs and video, in twelve dependency-ordered phases. **On 3 September 2026 every video capability was retired and deleted from the codebase rather than hidden.**
@@ -81,3 +82,7 @@ npm run build        # static output in dist/
 ```
 
 The build is entirely static — no environment variables, no server routes, no external origins. Any static host works with one rewrite of unknown paths to `index.html`; `vercel.json`, `public/_redirects` and `public/_headers` are included for Vercel, Netlify and Cloudflare Pages, and `deploy/nginx.conf` for the container image. HTTPS is required for tool registration.
+
+## Licence
+
+[MIT](./LICENSE). No runtime dependency carries a copyleft obligation.
