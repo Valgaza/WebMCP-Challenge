@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Download, MessageSquare, Package, Share2, Check } from "lucide-react";
 import type { PackageService } from "../application/package-service";
 import type { ReviewService } from "../application/review-service";
+import { count } from "../domain/plural";
 
 /**
  * Getting the work to somebody else, and hearing back about it.
@@ -159,7 +160,7 @@ export function SharingPanel({
 
   return (
     <section
-      data-semantic-id="inspector-sharing"
+      data-semantic-id="inspector-sharing" tabIndex={-1}
       data-agent-target={agentTarget === "inspector-sharing" ? "true" : undefined}
     >
       <h3>Hand it over</h3>
@@ -190,7 +191,7 @@ export function SharingPanel({
           <p className="plan-reading__text">{estimate.summary} About {readableSize(estimate.byteSize)}.</p>
           {estimate.missing > 0 ? (
             <ul className="plan-caveats">
-              <li>{estimate.missing} photograph(s) cannot be read from this machine and will not be in it.</li>
+              <li>{count(estimate.missing, "photograph")} cannot be read from this machine and will not be in it.</li>
             </ul>
           ) : null}
         </div>

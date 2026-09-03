@@ -232,7 +232,12 @@ export function LayersPanel({
           title={selectedTopLevel.length < 2 ? "Select at least two top-level layers to group" : undefined}
           onClick={() => onGroup(selectedTopLevel)}
         >
-          Group {selectedTopLevel.length || "selected"} layer(s)
+          {/*
+            * "Group 1 layer(s)" was wrong in both directions, and grouping needs two anyway.
+            * Below the threshold the button rests on the plural noun; at or above it, it names
+            * the count it is about to act on.
+            */}
+          {selectedTopLevel.length >= 2 ? `Group ${selectedTopLevel.length} layers` : "Group selected layers"}
         </button>
         <button
           className="button button--ghost" type="button"

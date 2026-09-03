@@ -146,7 +146,7 @@ export function ProfilesPanel({ applied, disabled, agentTarget, onApply, onStren
 
   return (
     <section
-      data-semantic-id="inspector-profiles"
+      data-semantic-id="inspector-profiles" tabIndex={-1}
       data-agent-target={agentTarget === "inspector-profiles" ? "true" : undefined}
     >
       {group(

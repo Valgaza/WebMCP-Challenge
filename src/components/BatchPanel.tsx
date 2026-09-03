@@ -137,7 +137,7 @@ export function BatchPanel({
 
   return (
     <section
-      data-semantic-id="inspector-batch"
+      data-semantic-id="inspector-batch" tabIndex={-1}
       data-agent-target={agentTarget === "inspector-batch" ? "true" : undefined}
     >
       <h3>Many at once</h3>

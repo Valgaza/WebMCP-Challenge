@@ -107,7 +107,7 @@ export function ChannelsPanel({
 
   return (
     <section
-      data-semantic-id="inspector-channels"
+      data-semantic-id="inspector-channels" tabIndex={-1}
       data-agent-target={agentTarget === "inspector-channels" ? "true" : undefined}
     >
       <h3>Channels</h3>

@@ -56,6 +56,7 @@ export function ProjectHub({ service = defaultProjectService }: ProjectHubProps)
   const shellRef = useRef<HTMLDivElement>(null);
   const deletedProjectIndexRef = useRef<number | null>(null);
   const [projects, setProjects] = useState<ProjectRecord[]>([]);
+  const [thumbnails, setThumbnails] = useState<Record<string, string>>({});
   const [recoverableProjects, setRecoverableProjects] = useState<RecoverableProjectSummary[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [filter, setFilter] = useState<ProjectFilter>("all");
@@ -132,6 +133,56 @@ export function ProjectHub({ service = defaultProjectService }: ProjectHubProps)
 
   const selectedProject = projects.find((project) => project.id === selectedId) ?? null;
   const selectedRecovery = recoverableProjects.find((project) => project.projectId === selectedId) ?? null;
+
+  /**
+   * A row shows the project's own first photograph.
+   *
+   * The slot used to be a `<div>` carrying one of three hardcoded hex gradients, picked by the
+   * row's index — so the first screen a visitor sees showed decorative placeholder art in
+   * exactly the place the product's own output belongs, and two projects of the same
+   * photographs could get different fake pictures depending on sort order. Estro already
+   * generates a real thumbnail for every import; this reads it.
+   *
+   * Fail-soft on purpose: a project with no media yet, a thumbnail not generated, or a
+   * derived-cache miss all leave `thumbnails` without an entry and the row falls back to the
+   * gradient. A missing preview is not worth an error.
+   */
+  useEffect(() => {
+    if (!projects.length) return;
+    let cancelled = false;
+    const created: string[] = [];
+
+    void (async () => {
+      const next: Record<string, string> = {};
+      for (const project of projects) {
+        const record = await assetService.searchAssets(project.id, { limit: 1 })
+          .then((result) => result.records.find((asset) => asset.thumbnailCacheKey) ?? null)
+          .catch(() => null);
+        if (!record?.thumbnailCacheKey) continue;
+        const blob = await assetService.readDerived(record.thumbnailCacheKey).catch(() => null);
+        if (!blob) continue;
+        const url = URL.createObjectURL(blob);
+        created.push(url);
+        next[project.id] = url;
+      }
+      if (cancelled) created.forEach((url) => URL.revokeObjectURL(url));
+      else setThumbnails(next);
+    })();
+
+    return () => {
+      cancelled = true;
+      created.forEach((url) => URL.revokeObjectURL(url));
+    };
+  }, [projects]);
+
+  /**
+   * Whether the header owns "Load the sample project" and "New project".
+   *
+   * It does whenever there is a list, and does not when the empty state is showing its own
+   * pair — otherwise the same two actions appear twice on one screen. While the list is still
+   * loading the header keeps them, so the controls do not flicker out and back in.
+   */
+  const showHeaderActions = loading || visibleProjects.length > 0 || query.trim().length > 0;
 
   async function loadSample() {
     setSampleBusy(true);
@@ -241,14 +292,27 @@ export function ProjectHub({ service = defaultProjectService }: ProjectHubProps)
           <span>{webMcpAvailability === "available" ? "WebMCP detected" : "Manual controls"}</span>
           <small>{webMcpAvailability === "available" ? `${getRegisteredToolCount()} tools ready` : "WebMCP unavailable"}</small>
         </div>
-        <button className="button button--secondary top-bar__sample" type="button" disabled={sampleBusy} onClick={() => void loadSample()}>
-          <Wand2 aria-hidden="true" size={16} />
-          {sampleBusy ? "Building…" : "Load sample"}
-        </button>
-        <button className="button button--primary top-bar__primary" type="button" onClick={() => setNameDialog({ mode: "create" })}>
-          <Plus aria-hidden="true" size={16} />
-          New project
-        </button>
+        {/*
+          * Offered here only when there is a list to sit above.
+          *
+          * With no projects yet, the empty state already puts these same two actions in the
+          * middle of the screen, so the header repeated them: four buttons for two actions,
+          * and each action arrived under two different names — "Load sample" beside "Load the
+          * sample project", "New project" beside "Start an empty project". Whichever place
+          * owns the moment now owns it alone, and both use one label.
+          */}
+        {showHeaderActions ? (
+          <>
+            <button className="button button--secondary top-bar__sample" type="button" disabled={sampleBusy} onClick={() => void loadSample()}>
+              <Wand2 aria-hidden="true" size={16} />
+              {sampleBusy ? "Loading the sample…" : "Load the sample project"}
+            </button>
+            <button className="button button--primary top-bar__primary" type="button" onClick={() => setNameDialog({ mode: "create" })}>
+              <Plus aria-hidden="true" size={16} />
+              New project
+            </button>
+          </>
+        ) : null}
       </header>
 
       <aside className="library-rail" aria-label="Project library">
@@ -287,11 +351,18 @@ export function ProjectHub({ service = defaultProjectService }: ProjectHubProps)
           </nav>
         </div>
 
+        {/*
+          * "This browser" is the one name for where projects live.
+          *
+          * It used to be four names on one screen: the rail said "Local browser", each row
+          * carried a "LOCAL" tag, the row's save state said "Saved locally", and the detail
+          * pane said "This browser". One fact, said four ways, reads as four facts.
+          */}
         <div className="storage-block">
           <p className="eyebrow">Storage</p>
           <div className="storage-line">
             <Database aria-hidden="true" size={17} />
-            <span>Local browser</span>
+            <span>This browser</span>
           </div>
           <p>Projects stay on this device.</p>
           <p>Cloud sync is not enabled.</p>
@@ -304,9 +375,12 @@ export function ProjectHub({ service = defaultProjectService }: ProjectHubProps)
             <h1>Projects</h1>
             <p>Continue from a durable local project.</p>
           </div>
-          <button className="button button--primary compact-create" type="button" onClick={() => setNameDialog({ mode: "create" })}>
-            <Plus aria-hidden="true" size={16} /> Create project
-          </button>
+          {/* Takes over from `.top-bar__primary` below 600px, so it carries the same label. */}
+          {showHeaderActions ? (
+            <button className="button button--primary compact-create" type="button" onClick={() => setNameDialog({ mode: "create" })}>
+              <Plus aria-hidden="true" size={16} /> New project
+            </button>
+          ) : null}
         </div>
 
         {loadError ? (
@@ -360,7 +434,19 @@ export function ProjectHub({ service = defaultProjectService }: ProjectHubProps)
                     to={`/editor/${project.id}`}
                     aria-label={`Open project ${project.name}`}
                   >
-                    <div className={`project-thumbnail project-thumbnail--${index % 3}`} aria-hidden="true" />
+                    {thumbnails[project.id] ? (
+                      <img
+                        className="project-thumbnail"
+                        src={thumbnails[project.id]}
+                        alt=""
+                        width={126}
+                        height={80}
+                        loading="lazy"
+                        decoding="async"
+                      />
+                    ) : (
+                      <div className={`project-thumbnail project-thumbnail--${index % 3}`} aria-hidden="true" />
+                    )}
                     <div className="project-row__content">
                       <span className="project-row__title">{project.name}</span>
                       <p>
@@ -368,9 +454,14 @@ export function ProjectHub({ service = defaultProjectService }: ProjectHubProps)
                       </p>
                       {recoverableProjects.some((candidate) => candidate.projectId === project.id) ? (
                         <span className="save-state save-state--recovery"><RotateCcw aria-hidden="true" size={14} /> Recovery available</span>
-                      ) : <span className="save-state"><Check aria-hidden="true" size={14} /> Saved locally</span>}
+                      ) : <span className="save-state"><Check aria-hidden="true" size={14} /> Saved</span>}
                     </div>
-                    <span className="project-row__storage">Local</span>
+                    {/*
+                      * The "LOCAL" tag is gone. A row's job is to report save state, which the
+                      * badge to its left already does; where the project is stored is not a
+                      * per-row fact, and saying it here a third time left the tag stranded at
+                      * the far end of the row with 450px of nothing between it and the title.
+                      */}
                   </Link>
                   <ProjectActionsMenu
                     project={project}
@@ -400,10 +491,10 @@ export function ProjectHub({ service = defaultProjectService }: ProjectHubProps)
             ) : (
               <div className="empty-state__actions">
                 <button className="button button--primary" type="button" disabled={sampleBusy} onClick={() => void loadSample()}>
-                  <Wand2 aria-hidden="true" size={16} /> {sampleBusy ? "Building the sample…" : "Load the sample project"}
+                  <Wand2 aria-hidden="true" size={16} /> {sampleBusy ? "Loading the sample…" : "Load the sample project"}
                 </button>
                 <button className="button button--secondary" type="button" onClick={() => setNameDialog({ mode: "create" })}>
-                  <Plus aria-hidden="true" size={16} /> Start an empty project
+                  <Plus aria-hidden="true" size={16} /> New project
                 </button>
               </div>
             )}

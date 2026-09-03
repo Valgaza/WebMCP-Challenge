@@ -95,7 +95,7 @@ export function CorrectionsPanel({
 
   return (
     <section
-      data-semantic-id="inspector-corrections"
+      data-semantic-id="inspector-corrections" tabIndex={-1}
       data-agent-target={agentTarget === "inspector-corrections" ? "true" : undefined}
     >
       <h3>Lens and perspective</h3>

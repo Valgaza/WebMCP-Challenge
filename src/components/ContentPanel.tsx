@@ -2,6 +2,7 @@ import { useRef } from "react";
 import { Circle, FileDown, FileUp, Square, Type } from "lucide-react";
 import type { Layer } from "../domain/layer";
 import type { ParagraphStyle } from "../domain/text";
+import { count } from "../domain/plural";
 
 /**
  * Making and editing the things that are not photographs.
@@ -53,7 +54,7 @@ export function ContentPanel({
 
   return (
     <section
-      data-semantic-id="inspector-content"
+      data-semantic-id="inspector-content" tabIndex={-1}
       data-agent-target={agentTarget === "inspector-content" ? "true" : undefined}
     >
       <h3>Text and shapes</h3>
@@ -182,7 +183,7 @@ export function ContentPanel({
         <button
           className="button button--ghost" type="button"
           disabled={disabled || vectorCount === 0}
-          title={vectorCount ? `Write ${vectorCount} shape(s) out as SVG` : "There are no shapes to write out"}
+          title={vectorCount ? `Write ${count(vectorCount, "shape")} out as SVG` : "There are no shapes to write out"}
           onClick={onExportSvg}
         >
           <FileDown aria-hidden="true" size={14} /> Write them out

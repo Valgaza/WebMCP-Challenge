@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { AlertTriangle, ListChecks, RotateCcw, X } from "lucide-react";
 import { JOB_STATUS_LABELS, isTerminalJobStatus, summarizeJob, type JobRecord } from "../domain/job";
 import type { JobService } from "../application/job-service";
+import { count } from "../domain/plural";
 
 interface JobCenterProps {
   projectId: string;
@@ -89,8 +90,8 @@ export function JobCenter({ projectId, jobService, onStatus, onRevealOutput, age
                   <dl className="job-row__facts">
                     <div><dt>Priority</dt><dd>{job.priority}</dd></div>
                     {job.ranInWorker ? <div><dt>Ran</dt><dd>off the interface thread</dd></div> : null}
-                    {job.derivativeIds.length ? <div><dt>Generated</dt><dd>{job.derivativeIds.length} preview file(s)</dd></div> : null}
-                    {job.outputIds.length ? <div><dt>Produced</dt><dd>{job.outputIds.length} output(s)</dd></div> : null}
+                    {job.derivativeIds.length ? <div><dt>Generated</dt><dd>{count(job.derivativeIds.length, "preview file")}</dd></div> : null}
+                    {job.outputIds.length ? <div><dt>Produced</dt><dd>{count(job.outputIds.length, "output")}</dd></div> : null}
                   </dl>
 
                   {job.warnings.map((warning) => (

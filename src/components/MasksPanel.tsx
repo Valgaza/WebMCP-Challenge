@@ -41,7 +41,7 @@ function describeSource(mask: Mask): string {
 export function MasksPanel({ masks, disabled, agentTarget, onAdd, onUpdate, onRemove }: MasksPanelProps) {
   return (
     <section
-      data-semantic-id="inspector-masks"
+      data-semantic-id="inspector-masks" tabIndex={-1}
       data-agent-target={agentTarget === "inspector-masks" ? "true" : undefined}
     >
       <h3>Masks</h3>

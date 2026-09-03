@@ -61,7 +61,7 @@ export function PaintAndSelectPanel({
 }: PaintAndSelectPanelProps) {
   return (
     <section
-      data-semantic-id="inspector-tools"
+      data-semantic-id="inspector-tools" tabIndex={-1}
       data-agent-target={agentTarget === "inspector-tools" ? "true" : undefined}
     >
       <h3>Select</h3>

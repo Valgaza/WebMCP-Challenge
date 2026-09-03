@@ -3,6 +3,7 @@ import { BookmarkPlus, Check } from "lucide-react";
 import type { PresetService } from "../application/preset-service";
 import type { PresetRecord } from "../domain/preset";
 import { describeBundle } from "../domain/preset";
+import { count } from "../domain/plural";
 
 /**
  * Saving a look and putting it on something else.
@@ -89,7 +90,7 @@ export function PresetsPanel({
 
   return (
     <section
-      data-semantic-id="inspector-presets"
+      data-semantic-id="inspector-presets" tabIndex={-1}
       data-agent-target={agentTarget === "inspector-presets" ? "true" : undefined}
     >
       <h3>Presets</h3>
@@ -125,7 +126,7 @@ export function PresetsPanel({
                 <button
                   type="button" className="effect-row__title"
                   disabled={disabled || busy || selectedLayerIds.length === 0}
-                  title={selectedLayerIds.length ? `Apply to ${selectedLayerIds.length} selected layer(s)` : "Select a layer first"}
+                  title={selectedLayerIds.length ? `Apply to ${count(selectedLayerIds.length, "selected layer")}` : "Select a layer first"}
                   onClick={() => void apply(preset)}
                 >
                   <strong>{preset.name}</strong>

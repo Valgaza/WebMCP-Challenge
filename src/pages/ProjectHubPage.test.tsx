@@ -57,7 +57,9 @@ describe("ProjectHub", () => {
     renderHub(service);
 
     expect(await screen.findByRole("heading", { name: "Nothing here yet" })).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: /start an empty project/i }));
+    // One label per action: the empty state and the header both say "New project", and only
+    // one of the two is on screen at a time.
+    await user.click(screen.getByRole("button", { name: "New project" }));
     await user.type(screen.getByLabelText("Project name"), "Anniversary film");
     await user.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Create project" }));
 

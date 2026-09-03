@@ -29,13 +29,25 @@ function relativeTime(iso: string): string {
   return new Date(iso).toLocaleDateString();
 }
 
-function stateOf(transaction: ProjectTransaction, history: ProjectHistorySnapshot): string {
-  if (transaction.resultingRevisionId === history.headRevision.id) return "Current revision";
-  if (transaction.kind === "undo") return "Undo record";
-  if (transaction.kind === "redo") return "Redo record";
-  if (history.project.redoTransactionIds.includes(transaction.id)) return "Undone";
-  if (history.project.undoTransactionIds.includes(transaction.id)) return "Applied";
-  return "Recorded";
+/**
+ * The state of an entry, or nothing when there is nothing to say.
+ *
+ * Every entry in a history is applied and recorded — that is what being in the history means —
+ * so "Applied" and "Recorded" were badges on almost every row carrying no information, in the
+ * same accent colour as the one badge that matters. Six identical "Applied" tags made
+ * "Current revision" hard to pick out of its own list. Returning null for the unremarkable
+ * states leaves the badge to the four that are genuinely worth reading, and `tone` keeps the
+ * accent for "you are here" rather than spending it on "an undo happened".
+ */
+function stateOf(
+  transaction: ProjectTransaction,
+  history: ProjectHistorySnapshot,
+): { label: string; tone: "current" | "noted" } | null {
+  if (transaction.resultingRevisionId === history.headRevision.id) return { label: "Current revision", tone: "current" };
+  if (transaction.kind === "undo") return { label: "Undo record", tone: "noted" };
+  if (transaction.kind === "redo") return { label: "Redo record", tone: "noted" };
+  if (history.project.redoTransactionIds.includes(transaction.id)) return { label: "Undone", tone: "noted" };
+  return null;
 }
 
 /**
@@ -104,7 +116,7 @@ export function HistoryPanel({
       data-agent-target={agentTarget === "panel-history" ? "true" : undefined}
     >
       <div className="panel-heading">
-        <div><p className="eyebrow">Provenance</p><h2>History</h2></div>
+        <h2>History</h2>
         <span>{entries.length}</span>
       </div>
 
@@ -136,11 +148,14 @@ export function HistoryPanel({
           const plan = plans[transaction.id];
           const isConsidering = considering === transaction.id;
           const canAsk = transaction.kind === "mutation" && transaction.undoable;
+          const state = history ? stateOf(transaction, history) : null;
           return (
             <li key={transaction.id} className="history-entry">
               <div className="history-entry__summary">
                 <strong>{transaction.summary}</strong>
-                <span className="history-entry__state">{history ? stateOf(transaction, history) : ""}</span>
+                {state ? (
+                  <span className={`history-entry__state history-entry__state--${state.tone}`}>{state.label}</span>
+                ) : null}
               </div>
               <p>{transaction.actor.displayName} · {relativeTime(transaction.createdAt)}</p>
 

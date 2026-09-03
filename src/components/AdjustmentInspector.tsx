@@ -104,7 +104,7 @@ export function AdjustmentInspector({
         })}
       </section>
 
-      <section data-semantic-id="inspector-histogram">
+      <section data-semantic-id="inspector-histogram" tabIndex={-1}>
         <h3>Histogram</h3>
         <div className="chip-row" role="group" aria-label="Histogram channel">
           {(["luminance", "red", "green", "blue"] as const).map((entry) => (

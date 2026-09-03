@@ -143,7 +143,7 @@ export function LayerStylesPanel({
 
   return (
     <section
-      data-semantic-id="inspector-styles"
+      data-semantic-id="inspector-styles" tabIndex={-1}
       data-agent-target={agentTarget === "inspector-styles" ? "true" : undefined}
     >
       <h3>Layer styles</h3>

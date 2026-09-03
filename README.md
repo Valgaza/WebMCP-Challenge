@@ -8,7 +8,7 @@ Estro's answer is that you already have somewhere to say what you want: the agen
 
 There is no chat box bolted onto this app, deliberately. A second conversation inside the editor would be a worse copy of the one you are already having, so instead every command is published on `document.modelContext` and every result carries the plain-language sentence the agent can hand straight back to you. Learn it by watching, or never learn it and keep asking. Both work.
 
-Open it, press **Open the sample project**, and there is a photograph on a canvas with layers, adjustments and a history. Nothing is uploaded; the sample is drawn in your browser and imported through the same path your own files take.
+Open it, press **Load the sample project**, and there is a photograph on a canvas with layers, adjustments and a history. Nothing is uploaded; the sample is drawn in your browser and imported through the same path your own files take.
 
 ## For an agent
 

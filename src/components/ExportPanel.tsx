@@ -120,7 +120,7 @@ export function ExportPanel({
   }
 
   return (
-    <section className="export-panel" data-semantic-id="inspector-export" data-agent-target={agentTarget === "inspector-export" ? "true" : undefined}>
+    <section className="export-panel" data-semantic-id="inspector-export" tabIndex={-1} data-agent-target={agentTarget === "inspector-export" ? "true" : undefined}>
       <h3>Export</h3>
 
         <label className="slider-field" data-semantic-id="export-preset">

@@ -68,7 +68,7 @@ export function SwatchesPanel({
 
   return (
     <section
-      data-semantic-id="inspector-swatches"
+      data-semantic-id="inspector-swatches" tabIndex={-1}
       data-agent-target={agentTarget === "inspector-swatches" ? "true" : undefined}
     >
       <h3>Saved colours</h3>

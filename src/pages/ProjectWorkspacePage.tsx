@@ -34,6 +34,7 @@ import { PresetsPanel } from "../components/PresetsPanel";
 import { LayerPropertiesPanel } from "../components/LayerPropertiesPanel";
 import { LayerStylesPanel } from "../components/LayerStylesPanel";
 import { HistoryPanel } from "../components/HistoryPanel";
+import { InspectorSection } from "../components/InspectorSection";
 import { GeometryPanel } from "../components/GeometryPanel";
 import { ExportPanel } from "../components/ExportPanel";
 import { CropOverlay } from "../components/CropOverlay";
@@ -116,6 +117,19 @@ export function ProjectWorkspace({ service = projectService, workspaceApi = defa
   const [proposalOpen, setProposalOpen] = useState(false);
   const [discardOpen, setDiscardOpen] = useState(false);
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
+  /**
+   * Which Inspector groups are open.
+   *
+   * `null` means "nobody has said", and the default for the current selection applies — so
+   * selecting a photograph opens the groups about a photograph without overriding a group the
+   * person has already opened or closed themselves. An explicit true or false wins and stays
+   * put, including across a change of selection, because a group someone opened on purpose
+   * vanishing when they click a different layer is worse than a stale default.
+   *
+   * Declared up here with the rest of the state because the focus-reveal effect below depends
+   * on it: a semantic target inside a collapsed group cannot take focus until it opens.
+   */
+  const [openSections, setOpenSections] = useState<Record<string, boolean | null>>({});
   const [leftTab, setLeftTab] = useState<"layers" | "media" | "history">("layers");
   /**
    * Video work starts in the bins, not the layer stack.
@@ -219,7 +233,18 @@ export function ProjectWorkspace({ service = projectService, workspaceApi = defa
         : {}),
     } : current);
     setAgentTarget(request.targetId); setStatus(`WebMCP focused ${target.label}.`);
-    queueMicrotask(() => document.querySelector<HTMLElement>(`[data-semantic-id="${request.targetId}"]`)?.focus());
+    queueMicrotask(() => {
+      const element = document.querySelector<HTMLElement>(`[data-semantic-id="${request.targetId}"]`);
+      /*
+       * An Inspector group can be collapsed, and a collapsed group's body is `display: none`,
+       * so focusing something inside one would silently do nothing. Reading the group off the
+       * DOM rather than from a target-to-group table means a target added later reveals
+       * itself without anyone remembering to register it here.
+       */
+      const group = element?.closest<HTMLElement>("[data-inspector-section]")?.dataset.inspectorSection;
+      if (group) setOpenSections((current) => ({ ...current, [group]: true }));
+      element?.focus();
+    });
     window.setTimeout(() => setAgentTarget((current) => current === request.targetId ? null : current), 10_000);
   }), [history?.headRevision.state.photoDocument, projectId]);
 
@@ -238,7 +263,9 @@ export function ProjectWorkspace({ service = projectService, workspaceApi = defa
     };
     settle();
     return () => window.clearTimeout(handle);
-  }, [agentTarget, workspace?.selection.type]);
+    // `openSections` is in here because a target inside a collapsed Inspector group cannot take
+    // focus until the group is open, and the reveal that opens it lands in the same render.
+  }, [agentTarget, workspace?.selection.type, openSections]);
 
   useEffect(() => {
     function enforceCompactPanelRule() {
@@ -745,6 +772,15 @@ export function ProjectWorkspace({ service = projectService, workspaceApi = defa
     ? assetRecords.find((record) => record.id === selectedImageLayer.assetId) ?? null
     : null;
 
+  const sectionDefaults: Record<string, boolean> = {
+    geometry: Boolean(selectedImageLayer),
+    colour: Boolean(selectedImageLayer),
+    document: !selectedImageLayer,
+  };
+
+  const isSectionOpen = (id: string) => openSections[id] ?? sectionDefaults[id] ?? false;
+  const toggleSection = (id: string, open: boolean) => setOpenSections((current) => ({ ...current, [id]: open }));
+
   /* --------------------------------- effects ---------------------------------- */
 
   // A previous session may have left staged bytes and jobs claiming to run. Reconciling on
@@ -952,7 +988,15 @@ export function ProjectWorkspace({ service = projectService, workspaceApi = defa
             />
           ) : leftTab === "layers" ? (
             <div id="layers-tabpanel" role="tabpanel" aria-labelledby="layers-tab" className="layers-panel">
-              <div className="panel-heading"><div><p className="eyebrow">Document structure</p><h2>Layers</h2></div><span>{documentLayers.length}</span></div>
+              {/*
+                * The eyebrow is gone from all four panel headings.
+                *
+                * "Document structure" over "Layers", under a tab already reading "Layers",
+                * said the same word three times and spent about a fifth of the visible
+                * height of a 280px rail doing it — in tertiary text that was the least
+                * readable on screen. The heading and its count are the whole job here.
+                */}
+              <div className="panel-heading"><h2>Layers</h2><span>{documentLayers.length}</span></div>
               {documentState ? (
                 <LayersPanel
                   layers={documentLayers}
@@ -1006,8 +1050,16 @@ export function ProjectWorkspace({ service = projectService, workspaceApi = defa
 
       <main className="editor-center" id="workspace-main">
         <div className="context-action-bar" aria-label="Canvas actions">
+          {/*
+            * "Actual size", not a second "100%".
+            *
+            * The bar read "Fit | 100% | 100%": a button that sets 1:1 sitting immediately
+            * beside the readout of the current zoom, the same four characters twice, told
+            * apart only by weight and colour. Naming the action says which one you can press,
+            * and leaves the number to the control whose whole job is reporting it.
+            */}
           <button className="button button--ghost" type="button" disabled={!documentState} onClick={() => fitViewport("fit")}>Fit</button>
-          <button className="button button--ghost" type="button" disabled={!documentState} onClick={() => fitViewport("actual")}>100%</button>
+          <button className="button button--ghost" type="button" disabled={!documentState} onClick={() => fitViewport("actual")}>Actual size</button>
           <output className="zoom-output" data-semantic-id="view-zoom" tabIndex={-1} aria-label="Canvas zoom">{Math.round(currentWorkspace.viewport.zoom * 100)}%</output>
 
           <label className="slider-field slider-field--inline" data-semantic-id="preview-quality">
@@ -1156,198 +1208,218 @@ export function ProjectWorkspace({ service = projectService, workspaceApi = defa
       {currentWorkspace.panels.inspector.open ? (
         <aside className="editor-inspector" data-semantic-id="inspector" data-agent-target={agentTarget === "inspector" ? "true" : undefined} tabIndex={-1} aria-labelledby="inspector-heading">
           <div className={`panel-resize-handle panel-resize-handle--${panelIsLeading("inspector") ? "leading" : "trailing"}`} role="separator" aria-label="Resize Inspector" aria-orientation="vertical" aria-valuemin={272} aria-valuemax={400} aria-valuenow={currentWorkspace.panels.inspector.widthPx} tabIndex={0} onDoubleClick={() => void applyWorkspaceChange({ type: "panel", panel: "inspector", widthPx: 304 })} onKeyDown={(event) => resizeWithKeyboard(event, "inspector")} onPointerDown={(event) => beginResize(event, "inspector")} onPointerMove={moveResize} onPointerUp={endResize} />
-          <div className="panel-heading"><div><p className="eyebrow">Properties</p><h2 id="inspector-heading">Inspector</h2></div></div>
+          <div className="panel-heading"><h2 id="inspector-heading">Inspector</h2></div>
 
           <div className="inspector-groups">
             {documentState && projectId ? (
-              <GeometryPanel
-                documentWidthPx={documentState.widthPx}
-                documentHeightPx={documentState.heightPx}
-                selectedLayerIds={selectedLayerIds}
-                selectedLayer={selectedImageLayer}
-                sourceWidthPx={selectedAssetSource?.reference.widthPx ?? null}
-                sourceHeightPx={selectedAssetSource?.reference.heightPx ?? null}
-                disabled={Boolean(selectedImageLayer?.locked)}
-                workerAvailable={assetApi.workerAvailable}
-                agentTarget={agentTarget}
-                onAlign={(edge: AlignEdge, reference: AlignReference, keyLayerId) => void runLayerOperation({ operation: "align", layerIds: selectedLayerIds, edge, reference, keyLayerId })}
-                onDistribute={(axis) => void runLayerOperation({ operation: "distribute", layerIds: selectedLayerIds, axis })}
-                onTransform={(patch) => selectedImageLayer && void runLayerOperation({ operation: "transform", layerId: selectedImageLayer.id, transform: patch })}
-                onCrop={(crop) => selectedImageLayer && void runLayerOperation({ operation: "crop", layerId: selectedImageLayer.id, crop })}
-                onCropRatio={(ratio) => { setCropRatio(ratio); if (selectedImageLayer) void runLayerOperation({ operation: "set_crop_ratio", layerId: selectedImageLayer.id, ratio }); }}
-                onFit={(mode) => selectedImageLayer && void runLayerOperation({ operation: "fit", layerId: selectedImageLayer.id, mode })}
-                onResetTransform={() => selectedImageLayer && void runLayerOperation({ operation: "reset_transform", layerId: selectedImageLayer.id })}
-                onRotateQuarter={(turns) => selectedImageLayer && void runLayerOperation({ operation: "rotate_quarter", layerId: selectedImageLayer.id, turns })}
-                onFlip={(axis) => selectedImageLayer && void runLayerOperation({ operation: "flip", layerId: selectedImageLayer.id, axis })}
-                onResize={(mode, w, h, options) => void resizeDocument(mode, w, h, options)}
-              />
+              <InspectorSection id="geometry" title="Position and size" open={isSectionOpen("geometry")} onToggle={(next) => toggleSection("geometry", next)}>
+                <GeometryPanel
+                  documentWidthPx={documentState.widthPx}
+                  documentHeightPx={documentState.heightPx}
+                  selectedLayerIds={selectedLayerIds}
+                  selectedLayer={selectedImageLayer}
+                  sourceWidthPx={selectedAssetSource?.reference.widthPx ?? null}
+                  sourceHeightPx={selectedAssetSource?.reference.heightPx ?? null}
+                  disabled={Boolean(selectedImageLayer?.locked)}
+                  workerAvailable={assetApi.workerAvailable}
+                  agentTarget={agentTarget}
+                  onAlign={(edge: AlignEdge, reference: AlignReference, keyLayerId) => void runLayerOperation({ operation: "align", layerIds: selectedLayerIds, edge, reference, keyLayerId })}
+                  onDistribute={(axis) => void runLayerOperation({ operation: "distribute", layerIds: selectedLayerIds, axis })}
+                  onTransform={(patch) => selectedImageLayer && void runLayerOperation({ operation: "transform", layerId: selectedImageLayer.id, transform: patch })}
+                  onCrop={(crop) => selectedImageLayer && void runLayerOperation({ operation: "crop", layerId: selectedImageLayer.id, crop })}
+                  onCropRatio={(ratio) => { setCropRatio(ratio); if (selectedImageLayer) void runLayerOperation({ operation: "set_crop_ratio", layerId: selectedImageLayer.id, ratio }); }}
+                  onFit={(mode) => selectedImageLayer && void runLayerOperation({ operation: "fit", layerId: selectedImageLayer.id, mode })}
+                  onResetTransform={() => selectedImageLayer && void runLayerOperation({ operation: "reset_transform", layerId: selectedImageLayer.id })}
+                  onRotateQuarter={(turns) => selectedImageLayer && void runLayerOperation({ operation: "rotate_quarter", layerId: selectedImageLayer.id, turns })}
+                  onFlip={(axis) => selectedImageLayer && void runLayerOperation({ operation: "flip", layerId: selectedImageLayer.id, axis })}
+                  onResize={(mode, w, h, options) => void resizeDocument(mode, w, h, options)}
+                />
+              </InspectorSection>
             ) : null}
 
             {selectedImageLayer && projectId ? (
-              <AdjustmentInspector
-                projectId={projectId}
-                layer={selectedImageLayer}
-                renderService={renderApi}
-                revisionKey={history?.headRevision.id ?? ""}
-                disabled={selectedImageLayer.locked}
-                onAdjust={(adjustment, value) => void adjustColor(adjustment, value)}
-                onOpacity={(opacity) => void runLayerOperation({ operation: "set_opacity", layerId: selectedImageLayer.id, opacity })}
-                onFlip={(axis) => void runLayerOperation({ operation: "flip", layerId: selectedImageLayer.id, axis })}
-                onStraighten={(rotationDeg) => void runLayerOperation({ operation: "straighten", layerId: selectedImageLayer.id, rotationDeg })}
-              />
+              <InspectorSection id="colour" title="Colour adjustments" open={isSectionOpen("colour")} onToggle={(next) => toggleSection("colour", next)}>
+                <AdjustmentInspector
+                  projectId={projectId}
+                  layer={selectedImageLayer}
+                  renderService={renderApi}
+                  revisionKey={history?.headRevision.id ?? ""}
+                  disabled={selectedImageLayer.locked}
+                  onAdjust={(adjustment, value) => void adjustColor(adjustment, value)}
+                  onOpacity={(opacity) => void runLayerOperation({ operation: "set_opacity", layerId: selectedImageLayer.id, opacity })}
+                  onFlip={(axis) => void runLayerOperation({ operation: "flip", layerId: selectedImageLayer.id, axis })}
+                  onStraighten={(rotationDeg) => void runLayerOperation({ operation: "straighten", layerId: selectedImageLayer.id, rotationDeg })}
+                />
+              </InspectorSection>
             ) : null}
 
             {selectedImageLayer && projectId ? (
-              <ProfilesPanel
-                applied={selectedImageLayer.profiles}
-                disabled={selectedImageLayer.locked}
-                agentTarget={agentTarget}
-                onApply={(profile, strength) => void runLayerOperation({ operation: "apply_profile", layerId: selectedImageLayer.id, profile, strength })}
-                onStrength={(applied, strength) => void runLayerOperation({
-                  operation: "apply_profile", layerId: selectedImageLayer.id, strength,
-                  profile: {
-                    schemaVersion: 1, id: applied.profileId, name: applied.name,
-                    kind: applied.kind, camera: null, operations: applied.operations,
-                  },
-                })}
-                onRemove={(kind) => void runLayerOperation({ operation: "apply_profile", layerId: selectedImageLayer.id, remove: kind })}
-              />
+              <InspectorSection id="profiles" title="Starting point and look" open={isSectionOpen("profiles")} onToggle={(next) => toggleSection("profiles", next)}>
+                <ProfilesPanel
+                  applied={selectedImageLayer.profiles}
+                  disabled={selectedImageLayer.locked}
+                  agentTarget={agentTarget}
+                  onApply={(profile, strength) => void runLayerOperation({ operation: "apply_profile", layerId: selectedImageLayer.id, profile, strength })}
+                  onStrength={(applied, strength) => void runLayerOperation({
+                    operation: "apply_profile", layerId: selectedImageLayer.id, strength,
+                    profile: {
+                      schemaVersion: 1, id: applied.profileId, name: applied.name,
+                      kind: applied.kind, camera: null, operations: applied.operations,
+                    },
+                  })}
+                  onRemove={(kind) => void runLayerOperation({ operation: "apply_profile", layerId: selectedImageLayer.id, remove: kind })}
+                />
+              </InspectorSection>
             ) : null}
 
             {documentState && projectId ? (
-              <PaintAndSelectPanel
-                tool={canvasTool}
-                brushKind={brushKind}
-                brushSizePx={brushSizePx}
-                brushColour={brushColour}
-                hasSelection={selectionState.hasSelection}
-                selectionSummary={selectionState.summary}
-                disabled={false}
-                agentTarget={agentTarget}
-                onChooseTool={(next) => { setCanvasTool(next); if (next) setCropping(false); }}
-                onBrushKind={setBrushKind}
-                onBrushSize={setBrushSizePx}
-                onBrushColour={setBrushColour}
-                cloneOffset={cloneOffset}
-                onCloneOffset={setCloneOffset}
-                strokeCount={selectedLayer?.kind === "paint" ? selectedLayer.strokes.strokes.length : 0}
-                onUndoStroke={() => { if (selectedLayer) void runLayerOperation({ operation: "undo_stroke", layerId: selectedLayer.id }); }}
-                onRestyleLastStroke={() => {
-                  if (selectedLayer?.kind !== "paint") return;
-                  const last = selectedLayer.strokes.strokes[selectedLayer.strokes.strokes.length - 1];
-                  if (!last) return;
-                  void runLayerOperation({
-                    operation: "restyle_stroke", layerId: selectedLayer.id, strokeId: last.id,
-                    brush: { kind: brushKind, sizePx: brushSizePx },
-                    paint: { kind: "solid", colour: brushColour, opacity: 1 },
-                  }, "Repainted the last stroke with the current brush.");
-                }}
-                onSelectAll={() => {
-                  void defaultSelectionService.selectAll(projectId).then(() => {
+              <InspectorSection id="paint" title="Select and paint" open={isSectionOpen("paint")} onToggle={(next) => toggleSection("paint", next)}>
+                <PaintAndSelectPanel
+                  tool={canvasTool}
+                  brushKind={brushKind}
+                  brushSizePx={brushSizePx}
+                  brushColour={brushColour}
+                  hasSelection={selectionState.hasSelection}
+                  selectionSummary={selectionState.summary}
+                  disabled={false}
+                  agentTarget={agentTarget}
+                  onChooseTool={(next) => { setCanvasTool(next); if (next) setCropping(false); }}
+                  onBrushKind={setBrushKind}
+                  onBrushSize={setBrushSizePx}
+                  onBrushColour={setBrushColour}
+                  cloneOffset={cloneOffset}
+                  onCloneOffset={setCloneOffset}
+                  strokeCount={selectedLayer?.kind === "paint" ? selectedLayer.strokes.strokes.length : 0}
+                  onUndoStroke={() => { if (selectedLayer) void runLayerOperation({ operation: "undo_stroke", layerId: selectedLayer.id }); }}
+                  onRestyleLastStroke={() => {
+                    if (selectedLayer?.kind !== "paint") return;
+                    const last = selectedLayer.strokes.strokes[selectedLayer.strokes.strokes.length - 1];
+                    if (!last) return;
+                    void runLayerOperation({
+                      operation: "restyle_stroke", layerId: selectedLayer.id, strokeId: last.id,
+                      brush: { kind: brushKind, sizePx: brushSizePx },
+                      paint: { kind: "solid", colour: brushColour, opacity: 1 },
+                    }, "Repainted the last stroke with the current brush.");
+                  }}
+                  onSelectAll={() => {
+                    void defaultSelectionService.selectAll(projectId).then(() => {
+                      refreshSelection();
+                      setStatus("Everything is selected.");
+                    }).catch(() => setError("Nothing could be selected."));
+                  }}
+                  onClearSelection={() => {
+                    defaultSelectionService.clear(projectId);
                     refreshSelection();
-                    setStatus("Everything is selected.");
-                  }).catch(() => setError("Nothing could be selected."));
-                }}
-                onClearSelection={() => {
-                  defaultSelectionService.clear(projectId);
-                  refreshSelection();
-                  setStatus("Selection cleared.");
-                }}
-                onFeather={(radiusPx) => {
-                  // Refining is synchronous: it works on the mask already in memory.
-                  defaultSelectionService.refine({ projectId, operation: { kind: "feather", radiusPx } });
-                  refreshSelection();
-                }}
-                onFillSelection={() => {
-                  void defaultSelectionService.save(projectId, "For fill").then((saved) => runLayerOperation({
-                    operation: "fill_region", selectionId: saved.id,
-                    paint: { kind: "solid", colour: brushColour, opacity: 1 },
-                  })).catch(() => setError("That selection could not be filled."));
-                }}
-              />
+                    setStatus("Selection cleared.");
+                  }}
+                  onFeather={(radiusPx) => {
+                    // Refining is synchronous: it works on the mask already in memory.
+                    defaultSelectionService.refine({ projectId, operation: { kind: "feather", radiusPx } });
+                    refreshSelection();
+                  }}
+                  onFillSelection={() => {
+                    void defaultSelectionService.save(projectId, "For fill").then((saved) => runLayerOperation({
+                      operation: "fill_region", selectionId: saved.id,
+                      paint: { kind: "solid", colour: brushColour, opacity: 1 },
+                    })).catch(() => setError("That selection could not be filled."));
+                  }}
+                />
+              </InspectorSection>
             ) : null}
 
             {documentState && projectId ? (
-              <ContentPanel
-                layer={selectedLayer}
-                disabled={Boolean(selectedLayer?.locked)}
-                agentTarget={agentTarget}
-                onAddText={() => void runLayerOperation({ operation: "add_text", content: "Your words here" })}
-                onAddShape={(kind) => void runLayerOperation({
-                  operation: "add_shape",
-                  shape: kind === "rectangle"
-                    ? { kind: "rectangle", x: 0, y: 0, width: Math.round(documentState.widthPx / 3), height: Math.round(documentState.heightPx / 3), cornerRadius: 0 }
-                    : { kind: "ellipse", cx: 0, cy: 0, rx: Math.round(documentState.widthPx / 6), ry: Math.round(documentState.heightPx / 6) },
-                })}
-                onEditText={(patch) => { if (selectedLayer) void runLayerOperation({ operation: "edit_text", layerId: selectedLayer.id, ...patch }); }}
-                onSetFill={(colour) => { if (selectedLayer) void runLayerOperation({ operation: "set_paint", layerId: selectedLayer.id, fill: { kind: "solid", colour, opacity: 1 } }); }}
-                onUseSwatch={selectedLayer ? (swatchId) => void runLayerOperation({ operation: "set_paint", layerId: selectedLayer.id, fill: { kind: "swatch", swatchId } }) : null}
-                onImportSvg={(source, fileName) => void importSvg(source, fileName)}
-                onExportSvg={exportSvg}
-                vectorCount={flattenLayers(documentLayers).filter(({ layer }) => layer.kind === "graphics" && layer.content.kind === "vector").length}
-              />
+              <InspectorSection id="content" title="Text and shapes" dedupeHeading open={isSectionOpen("content")} onToggle={(next) => toggleSection("content", next)}>
+                <ContentPanel
+                  layer={selectedLayer}
+                  disabled={Boolean(selectedLayer?.locked)}
+                  agentTarget={agentTarget}
+                  onAddText={() => void runLayerOperation({ operation: "add_text", content: "Your words here" })}
+                  onAddShape={(kind) => void runLayerOperation({
+                    operation: "add_shape",
+                    shape: kind === "rectangle"
+                      ? { kind: "rectangle", x: 0, y: 0, width: Math.round(documentState.widthPx / 3), height: Math.round(documentState.heightPx / 3), cornerRadius: 0 }
+                      : { kind: "ellipse", cx: 0, cy: 0, rx: Math.round(documentState.widthPx / 6), ry: Math.round(documentState.heightPx / 6) },
+                  })}
+                  onEditText={(patch) => { if (selectedLayer) void runLayerOperation({ operation: "edit_text", layerId: selectedLayer.id, ...patch }); }}
+                  onSetFill={(colour) => { if (selectedLayer) void runLayerOperation({ operation: "set_paint", layerId: selectedLayer.id, fill: { kind: "solid", colour, opacity: 1 } }); }}
+                  onUseSwatch={selectedLayer ? (swatchId) => void runLayerOperation({ operation: "set_paint", layerId: selectedLayer.id, fill: { kind: "swatch", swatchId } }) : null}
+                  onImportSvg={(source, fileName) => void importSvg(source, fileName)}
+                  onExportSvg={exportSvg}
+                  vectorCount={flattenLayers(documentLayers).filter(({ layer }) => layer.kind === "graphics" && layer.content.kind === "vector").length}
+                />
+              </InspectorSection>
             ) : null}
 
             {selectedLayer && selectedLayer.kind !== "group" && projectId ? (
-              <MasksPanel
-                masks={selectedLayer.masks}
-                disabled={selectedLayer.locked}
-                agentTarget={agentTarget}
-                onAdd={(mask) => void runLayerOperation({ operation: "add_mask", layerId: selectedLayer.id, mask })}
-                onUpdate={(maskId, patch) => void runLayerOperation({ operation: "update_mask", layerId: selectedLayer.id, maskId, mask: patch })}
-                onRemove={(maskId) => void runLayerOperation({ operation: "remove_mask", layerId: selectedLayer.id, maskId })}
-              />
+              <InspectorSection id="masks" title="Masks" dedupeHeading open={isSectionOpen("masks")} onToggle={(next) => toggleSection("masks", next)}>
+                <MasksPanel
+                  masks={selectedLayer.masks}
+                  disabled={selectedLayer.locked}
+                  agentTarget={agentTarget}
+                  onAdd={(mask) => void runLayerOperation({ operation: "add_mask", layerId: selectedLayer.id, mask })}
+                  onUpdate={(maskId, patch) => void runLayerOperation({ operation: "update_mask", layerId: selectedLayer.id, maskId, mask: patch })}
+                  onRemove={(maskId) => void runLayerOperation({ operation: "remove_mask", layerId: selectedLayer.id, maskId })}
+                />
+              </InspectorSection>
             ) : null}
 
             {documentState && projectId ? (
-              <PresetsPanel
-                projectId={projectId}
-                presetService={defaultPresetService}
-                selectedLayerIds={selectedLayerIds}
-                revisionKey={history?.headRevision.id ?? ""}
-                disabled={false}
-                agentTarget={agentTarget}
-                onStatus={setStatus}
-                onError={setError}
-                onChanged={() => void loadWorkspace()}
-              />
+              <InspectorSection id="presets" title="Presets" dedupeHeading open={isSectionOpen("presets")} onToggle={(next) => toggleSection("presets", next)}>
+                <PresetsPanel
+                  projectId={projectId}
+                  presetService={defaultPresetService}
+                  selectedLayerIds={selectedLayerIds}
+                  revisionKey={history?.headRevision.id ?? ""}
+                  disabled={false}
+                  agentTarget={agentTarget}
+                  onStatus={setStatus}
+                  onError={setError}
+                  onChanged={() => void loadWorkspace()}
+                />
+              </InspectorSection>
             ) : null}
 
             {selectedImageLayer && projectId ? (
-              <CorrectionsPanel
-                layer={selectedImageLayer}
-                disabled={selectedImageLayer.locked}
-                agentTarget={agentTarget}
-                onPerspective={(sliders) => void runLayerOperation({ operation: "set_perspective", layerId: selectedImageLayer.id, sliders })}
-                onClearPerspective={() => void runLayerOperation({ operation: "set_perspective", layerId: selectedImageLayer.id, corners: null })}
-                onLens={(correction) => void runLayerOperation({ operation: "correct_lens", layerId: selectedImageLayer.id, correction })}
-                onFreeTransform={(patch) => void runLayerOperation({ operation: "free_transform", layerId: selectedImageLayer.id, transform: patch })}
-                onWarp={(input) => void runLayerOperation({ operation: "warp", layerId: selectedImageLayer.id, ...input })}
-              />
+              <InspectorSection id="corrections" title="Lens and perspective" dedupeHeading open={isSectionOpen("corrections")} onToggle={(next) => toggleSection("corrections", next)}>
+                <CorrectionsPanel
+                  layer={selectedImageLayer}
+                  disabled={selectedImageLayer.locked}
+                  agentTarget={agentTarget}
+                  onPerspective={(sliders) => void runLayerOperation({ operation: "set_perspective", layerId: selectedImageLayer.id, sliders })}
+                  onClearPerspective={() => void runLayerOperation({ operation: "set_perspective", layerId: selectedImageLayer.id, corners: null })}
+                  onLens={(correction) => void runLayerOperation({ operation: "correct_lens", layerId: selectedImageLayer.id, correction })}
+                  onFreeTransform={(patch) => void runLayerOperation({ operation: "free_transform", layerId: selectedImageLayer.id, transform: patch })}
+                  onWarp={(input) => void runLayerOperation({ operation: "warp", layerId: selectedImageLayer.id, ...input })}
+                />
+              </InspectorSection>
             ) : null}
 
             {selectedLayer && selectedLayer.kind !== "group" && projectId ? (
-              <LayerStylesPanel
-                container={selectedLayer.styles}
-                disabled={selectedLayer.locked}
-                agentTarget={agentTarget}
-                onAdd={(style) => void runLayerOperation({ operation: "add_style", layerId: selectedLayer.id, style })}
-                onUpdate={(styleId, patch) => void runLayerOperation({ operation: "update_style", layerId: selectedLayer.id, styleId, style: patch })}
-                onRemove={(styleId) => void runLayerOperation({ operation: "remove_style", layerId: selectedLayer.id, styleId })}
-              />
+              <InspectorSection id="styles" title="Layer styles" dedupeHeading open={isSectionOpen("styles")} onToggle={(next) => toggleSection("styles", next)}>
+                <LayerStylesPanel
+                  container={selectedLayer.styles}
+                  disabled={selectedLayer.locked}
+                  agentTarget={agentTarget}
+                  onAdd={(style) => void runLayerOperation({ operation: "add_style", layerId: selectedLayer.id, style })}
+                  onUpdate={(styleId, patch) => void runLayerOperation({ operation: "update_style", layerId: selectedLayer.id, styleId, style: patch })}
+                  onRemove={(styleId) => void runLayerOperation({ operation: "remove_style", layerId: selectedLayer.id, styleId })}
+                />
+              </InspectorSection>
             ) : null}
 
             {selectedLayer && projectId ? (
-              <LayerPropertiesPanel
-                layer={selectedLayer}
-                canClip={documentLayers.findIndex((entry) => entry.id === selectedLayer.id) > 0}
-                disabled={selectedLayer.locked}
-                agentTarget={agentTarget}
-                onSetBlendMode={(blendMode) => void runLayerOperation({ operation: "set_blend_mode", layerId: selectedLayer.id, blendMode })}
-                onSetClipping={(clipToBelow) => void runLayerOperation({ operation: "set_clipping", layerId: selectedLayer.id, clipToBelow })}
-                onAddAdjustmentLayer={() => void runLayerOperation({ operation: "add_adjustment_layer" })}
-                onAddFillLayer={() => void runLayerOperation({ operation: "add_fill_layer" })}
-              />
+              <InspectorSection id="compositing" title="Compositing" dedupeHeading open={isSectionOpen("compositing")} onToggle={(next) => toggleSection("compositing", next)}>
+                <LayerPropertiesPanel
+                  layer={selectedLayer}
+                  canClip={documentLayers.findIndex((entry) => entry.id === selectedLayer.id) > 0}
+                  disabled={selectedLayer.locked}
+                  agentTarget={agentTarget}
+                  onSetBlendMode={(blendMode) => void runLayerOperation({ operation: "set_blend_mode", layerId: selectedLayer.id, blendMode })}
+                  onSetClipping={(clipToBelow) => void runLayerOperation({ operation: "set_clipping", layerId: selectedLayer.id, clipToBelow })}
+                  onAddAdjustmentLayer={() => void runLayerOperation({ operation: "add_adjustment_layer" })}
+                  onAddFillLayer={() => void runLayerOperation({ operation: "add_fill_layer" })}
+                />
+              </InspectorSection>
             ) : null}
 
             {/*
@@ -1356,135 +1428,148 @@ export function ProjectWorkspace({ service = projectService, workspaceApi = defa
               * rather than on the image-layer narrowing above it.
               */}
             {selectedLayer && selectedLayer.kind !== "group" && projectId ? (
-              <EffectStackPanel
-                container={selectedLayer.effects}
-                disabled={selectedLayer.locked}
-                agentTarget={agentTarget}
-                onAdd={(choice) => void runLayerOperation({
-                  operation: "add_effect", layerId: selectedLayer.id,
-                  name: choice.name,
-                  colourOperation: choice.colourOperation,
-                  filter: choice.filter,
-                })}
-                onUpdate={(effectId, patch) => void runLayerOperation({
-                  operation: "update_effect", layerId: selectedLayer.id, effectId, ...patch,
-                })}
-                onReorder={(effectId, toIndex) => void runLayerOperation({
-                  operation: "reorder_effect", layerId: selectedLayer.id, effectId, toIndex,
-                })}
-                onRemove={(effectId) => void runLayerOperation({
-                  operation: "remove_effect", layerId: selectedLayer.id, effectId,
-                })}
-              />
+              <InspectorSection id="effects" title="Effects" dedupeHeading open={isSectionOpen("effects")} onToggle={(next) => toggleSection("effects", next)}>
+                <EffectStackPanel
+                  container={selectedLayer.effects}
+                  disabled={selectedLayer.locked}
+                  agentTarget={agentTarget}
+                  onAdd={(choice) => void runLayerOperation({
+                    operation: "add_effect", layerId: selectedLayer.id,
+                    name: choice.name,
+                    colourOperation: choice.colourOperation,
+                    filter: choice.filter,
+                  })}
+                  onUpdate={(effectId, patch) => void runLayerOperation({
+                    operation: "update_effect", layerId: selectedLayer.id, effectId, ...patch,
+                  })}
+                  onReorder={(effectId, toIndex) => void runLayerOperation({
+                    operation: "reorder_effect", layerId: selectedLayer.id, effectId, toIndex,
+                  })}
+                  onRemove={(effectId) => void runLayerOperation({
+                    operation: "remove_effect", layerId: selectedLayer.id, effectId,
+                  })}
+                />
+              </InspectorSection>
             ) : null}
 
             {documentState && projectId ? (
-              <SwatchesPanel
-                swatches={documentState.swatches ?? []}
-                disabled={false}
-                agentTarget={agentTarget}
-                onAdd={(name, paint) => void layerApi.applySwatch(projectId, { name, paint }, { intent: "Save a colour from the Inspector." })
-                  .then((result) => { acceptMutation(result); setStatus(`Saved “${name}”.`); })
-                  .catch((swatchError) => setError(swatchError instanceof ProjectError ? swatchError.message : "That colour could not be saved."))}
-                onUpdate={(swatchId, patch) => void layerApi.applySwatch(projectId, { swatchId, ...patch }, { intent: "Change a saved colour from the Inspector." })
-                  .then((result) => { acceptMutation(result); setStatus(result.transaction.summary); })
-                  .catch((swatchError) => setError(swatchError instanceof ProjectError ? swatchError.message : "That colour could not be changed."))}
-                onRemove={(swatchId) => void layerApi.applySwatch(projectId, { swatchId, remove: true }, { intent: "Remove a saved colour from the Inspector." })
-                  .then((result) => { acceptMutation(result); setStatus(result.transaction.summary); })
-                  .catch((swatchError) => setError(swatchError instanceof ProjectError ? swatchError.message : "That colour could not be removed."))}
-                onUseOnSelection={selectedLayer?.kind === "graphics"
-                  ? (swatchId) => void runLayerOperation({ operation: "set_paint", layerId: selectedLayer.id, fill: { kind: "swatch", swatchId } })
-                  : null}
-              />
+              <InspectorSection id="swatches" title="Saved colours" dedupeHeading open={isSectionOpen("swatches")} onToggle={(next) => toggleSection("swatches", next)}>
+                <SwatchesPanel
+                  swatches={documentState.swatches ?? []}
+                  disabled={false}
+                  agentTarget={agentTarget}
+                  onAdd={(name, paint) => void layerApi.applySwatch(projectId, { name, paint }, { intent: "Save a colour from the Inspector." })
+                    .then((result) => { acceptMutation(result); setStatus(`Saved “${name}”.`); })
+                    .catch((swatchError) => setError(swatchError instanceof ProjectError ? swatchError.message : "That colour could not be saved."))}
+                  onUpdate={(swatchId, patch) => void layerApi.applySwatch(projectId, { swatchId, ...patch }, { intent: "Change a saved colour from the Inspector." })
+                    .then((result) => { acceptMutation(result); setStatus(result.transaction.summary); })
+                    .catch((swatchError) => setError(swatchError instanceof ProjectError ? swatchError.message : "That colour could not be changed."))}
+                  onRemove={(swatchId) => void layerApi.applySwatch(projectId, { swatchId, remove: true }, { intent: "Remove a saved colour from the Inspector." })
+                    .then((result) => { acceptMutation(result); setStatus(result.transaction.summary); })
+                    .catch((swatchError) => setError(swatchError instanceof ProjectError ? swatchError.message : "That colour could not be removed."))}
+                  onUseOnSelection={selectedLayer?.kind === "graphics"
+                    ? (swatchId) => void runLayerOperation({ operation: "set_paint", layerId: selectedLayer.id, fill: { kind: "swatch", swatchId } })
+                    : null}
+                />
+              </InspectorSection>
             ) : null}
 
             {documentState && projectId ? (
-              <ChannelsPanel
-                projectId={projectId}
-                channelService={defaultChannelService}
-                selectionService={defaultSelectionService}
-                hasSelection={selectionState.hasSelection}
-                revisionKey={history?.headRevision.id ?? ""}
-                agentTarget={agentTarget}
-                onViewChange={setChannelView}
-                onStatus={setStatus}
-                onError={setError}
-                onSelectionChanged={refreshSelection}
-              />
+              <InspectorSection id="channels" title="Channels" dedupeHeading open={isSectionOpen("channels")} onToggle={(next) => toggleSection("channels", next)}>
+                <ChannelsPanel
+                  projectId={projectId}
+                  channelService={defaultChannelService}
+                  selectionService={defaultSelectionService}
+                  hasSelection={selectionState.hasSelection}
+                  revisionKey={history?.headRevision.id ?? ""}
+                  agentTarget={agentTarget}
+                  onViewChange={setChannelView}
+                  onStatus={setStatus}
+                  onError={setError}
+                  onSelectionChanged={refreshSelection}
+                />
+              </InspectorSection>
             ) : null}
 
             {projectId && project ? (
-              <BatchPanel
-                projectId={projectId}
-                projectName={project.name}
-                batchExportService={defaultBatchExportService}
-                presetService={defaultPresetService}
-                historyService={service}
-                projects={allProjects.map((entry) => ({ id: entry.id, name: entry.name }))}
-                selectedLayerIds={selectedLayerIds}
-                revisionKey={history?.headRevision.id ?? ""}
-                disabled={!documentState}
-                agentTarget={agentTarget}
-                onStatus={setStatus}
-                onError={setError}
-              />
+              <InspectorSection id="batch" title="Many at once" dedupeHeading open={isSectionOpen("batch")} onToggle={(next) => toggleSection("batch", next)}>
+                <BatchPanel
+                  projectId={projectId}
+                  projectName={project.name}
+                  batchExportService={defaultBatchExportService}
+                  presetService={defaultPresetService}
+                  historyService={service}
+                  projects={allProjects.map((entry) => ({ id: entry.id, name: entry.name }))}
+                  selectedLayerIds={selectedLayerIds}
+                  revisionKey={history?.headRevision.id ?? ""}
+                  disabled={!documentState}
+                  agentTarget={agentTarget}
+                  onStatus={setStatus}
+                  onError={setError}
+                />
+              </InspectorSection>
             ) : null}
 
             {projectId && project ? (
-              <SharingPanel
-                projectId={projectId}
-                projectName={project.name}
-                packageService={defaultPackageService}
-                reviewService={defaultReviewService}
-                selectedLayerId={selectedLayer?.id ?? null}
-                revisionKey={history?.headRevision.id ?? ""}
-                agentTarget={agentTarget}
-                onStatus={setStatus}
-                onError={setError}
-              />
+              <InspectorSection id="sharing" title="Hand it over" dedupeHeading open={isSectionOpen("sharing")} onToggle={(next) => toggleSection("sharing", next)}>
+                <SharingPanel
+                  projectId={projectId}
+                  projectName={project.name}
+                  packageService={defaultPackageService}
+                  reviewService={defaultReviewService}
+                  selectedLayerId={selectedLayer?.id ?? null}
+                  revisionKey={history?.headRevision.id ?? ""}
+                  agentTarget={agentTarget}
+                  onStatus={setStatus}
+                  onError={setError}
+                />
+              </InspectorSection>
             ) : null}
 
             {projectId ? (
-              <ExportPanel
-                projectId={projectId}
-                renderService={renderApi}
-                outputService={outputApi}
-                jobService={jobApi}
-                revisionKey={history?.headRevision.id ?? ""}
-                hasDocument={documentState !== null}
-                agentTarget={agentTarget}
-                onStatus={setStatus}
-                onError={setError}
-              />
+              <InspectorSection id="export" title="Export" dedupeHeading open={isSectionOpen("export")} onToggle={(next) => toggleSection("export", next)}>
+                <ExportPanel
+                  projectId={projectId}
+                  renderService={renderApi}
+                  outputService={outputApi}
+                  jobService={jobApi}
+                  revisionKey={history?.headRevision.id ?? ""}
+                  hasDocument={documentState !== null}
+                  agentTarget={agentTarget}
+                  onStatus={setStatus}
+                  onError={setError}
+                />
+              </InspectorSection>
             ) : null}
 
             {documentState && !selectedImageLayer ? (
-              <section>
-                <h3>Document</h3>
-                <dl className="property-list">
-                  <div data-semantic-id="inspector-document-width" data-agent-target={agentTarget === "inspector-document-width" ? "true" : undefined} tabIndex={-1}><dt>Width</dt><dd>{documentState.widthPx.toLocaleString()} px</dd></div>
-                  <div><dt>Height</dt><dd>{documentState.heightPx.toLocaleString()} px</dd></div>
-                  <div><dt>Resolution</dt><dd>{documentState.resolutionPpi} ppi</dd></div>
-                  <div><dt>Orientation</dt><dd>{documentState.orientation}</dd></div>
-                  <div><dt>Background</dt><dd>{documentState.background.type === "transparent" ? "Transparent" : documentState.background.color}</dd></div>
-                  <div><dt>Document ID</dt><dd><code>{documentState.id}</code></dd></div>
-                </dl>
-              </section>
+              <InspectorSection id="document" title="Document" open={isSectionOpen("document")} onToggle={(next) => toggleSection("document", next)}>
+                <section>
+                  <dl className="property-list">
+                    <div data-semantic-id="inspector-document-width" data-agent-target={agentTarget === "inspector-document-width" ? "true" : undefined} tabIndex={-1}><dt>Width</dt><dd>{documentState.widthPx.toLocaleString()} px</dd></div>
+                    <div><dt>Height</dt><dd>{documentState.heightPx.toLocaleString()} px</dd></div>
+                    <div><dt>Resolution</dt><dd>{documentState.resolutionPpi} ppi</dd></div>
+                    <div><dt>Orientation</dt><dd>{documentState.orientation}</dd></div>
+                    <div><dt>Background</dt><dd>{documentState.background.type === "transparent" ? "Transparent" : documentState.background.color}</dd></div>
+                    <div><dt>Document ID</dt><dd><code>{documentState.id}</code></dd></div>
+                  </dl>
+                </section>
+              </InspectorSection>
             ) : null}
 
-
-            <section>
-              <h3>Guides and snapping</h3>
-              <div className="inspector-actions">
-                <button className="button button--secondary" type="button" disabled={!documentState} onClick={() => {
-                  if (!documentState) return;
-                  void applyWorkspaceChange({ type: "guide", action: "add", axis: "x", positionPx: documentState.widthPx / 2 }, "Added a vertical center guide.");
-                  void applyWorkspaceChange({ type: "guide", action: "add", axis: "y", positionPx: documentState.heightPx / 2 }, "Added a horizontal center guide.");
-                }}>Add center guides</button>
-                <button className="button button--ghost" type="button" disabled={!currentWorkspace.guides.length} onClick={() => void applyWorkspaceChange({ type: "guide", action: "clear" }, "Cleared all guides.")}>Clear guides</button>
-              </div>
-              <p className="field-help">Canvas guides snap to the {currentWorkspace.gridSizePx}px grid. Timeline snapping is separate and lives in the timeline's own controls.</p>
-            </section>
+            <InspectorSection id="guides" title="Guides and snapping" open={isSectionOpen("guides")} onToggle={(next) => toggleSection("guides", next)}>
+              <section>
+                <div className="inspector-actions">
+                  <button className="button button--secondary" type="button" disabled={!documentState} onClick={() => {
+                    if (!documentState) return;
+                    void applyWorkspaceChange({ type: "guide", action: "add", axis: "x", positionPx: documentState.widthPx / 2 }, "Added a vertical center guide.");
+                    void applyWorkspaceChange({ type: "guide", action: "add", axis: "y", positionPx: documentState.heightPx / 2 }, "Added a horizontal center guide.");
+                  }}>Add center guides</button>
+                  <button className="button button--ghost" type="button" disabled={!currentWorkspace.guides.length} onClick={() => void applyWorkspaceChange({ type: "guide", action: "clear" }, "Cleared all guides.")}>Clear guides</button>
+                </div>
+                <p className="field-help">Canvas guides snap to the {currentWorkspace.gridSizePx}px grid. Timeline snapping is separate and lives in the timeline's own controls.</p>
+              </section>
+            </InspectorSection>
           </div>
         </aside>
       ) : null}

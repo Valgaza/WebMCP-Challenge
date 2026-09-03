@@ -30,7 +30,7 @@ export function LayerPropertiesPanel({
 }: LayerPropertiesPanelProps) {
   return (
     <section
-      data-semantic-id="inspector-compositing"
+      data-semantic-id="inspector-compositing" tabIndex={-1}
       data-agent-target={agentTarget === "inspector-compositing" ? "true" : undefined}
     >
       <h3>Compositing</h3>

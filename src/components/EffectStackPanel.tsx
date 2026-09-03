@@ -213,7 +213,7 @@ export function EffectStackPanel({
   return (
     <section
       className="effect-stack"
-      data-semantic-id="inspector-effects"
+      data-semantic-id="inspector-effects" tabIndex={-1}
       data-agent-target={agentTarget === "inspector-effects" ? "true" : undefined}
     >
       <div className="effect-stack__head">

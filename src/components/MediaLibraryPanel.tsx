@@ -16,6 +16,7 @@ import { describePresence } from "../media/container-probe";
 import { ProjectError } from "../domain/project-error";
 import type { CatalogueService } from "../application/catalogue-service";
 import { MarkingPanel } from "./MarkingPanel";
+import { count } from "../domain/plural";
 
 export type MediaView = "grid" | "list" | "bins" | "storyboard";
 
@@ -353,7 +354,7 @@ export function MediaLibraryPanel({
   return (
     <div id="media-tabpanel" role="tabpanel" aria-labelledby="media-tab" className="media-panel" data-semantic-id="panel-media" data-agent-target={agentTarget === "panel-media" ? "true" : undefined}>
       <div className="panel-heading">
-        <div><p className="eyebrow">Project media</p><h2>Media</h2></div>
+        <h2>Media</h2>
         <span>{result.matchedCount}{result.matchedCount !== result.totalCount ? ` / ${result.totalCount}` : ""}</span>
       </div>
 
@@ -737,7 +738,7 @@ export function MediaLibraryPanel({
             <div><dt>New file</dt><dd>{replacement.proposed.name}</dd></div>
             <div><dt>Dimensions</dt><dd>{replacement.current.widthPx} × {replacement.current.heightPx} → {replacement.proposed.widthPx} × {replacement.proposed.heightPx}</dd></div>
             <div><dt>Format</dt><dd>{replacement.current.mediaType} → {replacement.proposed.mediaType}</dd></div>
-            <div><dt>Used by</dt><dd>{replacement.affectedLayerIds.length} layer(s)</dd></div>
+            <div><dt>Used by</dt><dd>{count(replacement.affectedLayerIds.length, "layer")}</dd></div>
           </dl>
           {replacement.losses.length ? (
             <ul className="proposal-losses">

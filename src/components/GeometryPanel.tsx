@@ -9,6 +9,7 @@ import {
   type ImageLayer,
 } from "../domain/layer";
 import type { ResampleAlgorithm } from "../workers/worker-protocol";
+import { count } from "../domain/plural";
 
 interface GeometryPanelProps {
   documentWidthPx: number;
@@ -89,7 +90,7 @@ export function GeometryPanel({
 
   return (
     <>
-      <section data-semantic-id="inspector-transform" data-agent-target={agentTarget === "inspector-transform" ? "true" : undefined}>
+      <section data-semantic-id="inspector-transform" tabIndex={-1} data-agent-target={agentTarget === "inspector-transform" ? "true" : undefined}>
         <h3>Transform</h3>
         {!selectedLayer ? (
           <p className="field-help">Select an image layer to change its position, size, or rotation.</p>
@@ -185,7 +186,7 @@ export function GeometryPanel({
       </section>
 
       {selectedLayer && crop ? (
-        <section data-semantic-id="inspector-crop" data-agent-target={agentTarget === "inspector-crop" ? "true" : undefined}>
+        <section data-semantic-id="inspector-crop" tabIndex={-1} data-agent-target={agentTarget === "inspector-crop" ? "true" : undefined}>
           <h3>Crop</h3>
           <p className="field-help">
             Crop is stored as a proportion of the source, so it survives a replacement at different pixel dimensions.
@@ -196,7 +197,12 @@ export function GeometryPanel({
           <div className="size-fields">
             {(["left", "top", "right", "bottom"] as const).map((edge) => (
               <label key={edge}>
-                <span>{edge}</span>
+                {/*
+                  * Capitalised through CSS rather than in the string, because `edge` is also
+                  * the field name in the crop object. These four were the only lowercase field
+                  * labels in a panel where everything else reads "X", "Scale X %", "Anchor Y".
+                  */}
+                <span className="field-caption">{edge}</span>
                 <input
                   type="number" min={0} max={1} step={0.01} value={Number(crop[edge].toFixed(3))} disabled={disabled}
                   onChange={(event) => onCrop({ ...crop, [edge]: Number(event.target.value) })}
@@ -224,7 +230,7 @@ export function GeometryPanel({
         </section>
       ) : null}
 
-      <section data-semantic-id="inspector-align" data-agent-target={agentTarget === "inspector-align" ? "true" : undefined}>
+      <section data-semantic-id="inspector-align" tabIndex={-1} data-agent-target={agentTarget === "inspector-align" ? "true" : undefined}>
         <h3>Align and distribute</h3>
         <label className="slider-field">
           <span>Align to</span>
@@ -236,7 +242,7 @@ export function GeometryPanel({
         </label>
         <p className="field-help">
           {canAlign
-            ? `Acting on ${selectedLayerIds.length} selected layer(s).`
+            ? `Acting on ${count(selectedLayerIds.length, "selected layer")}.`
             : "Select one or more image layers to align them."}
         </p>
         <div className="align-grid">
