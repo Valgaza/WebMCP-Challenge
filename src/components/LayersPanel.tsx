@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { IconButton } from "./ui/IconButton";
 import {
   Brush, ChevronDown, ChevronRight, Contrast, Copy, Eye, EyeOff, Focus, FolderInput,
   Headphones, Image, Layers3, Lock, LockOpen, MoveDown, MoveUp, PaintBucket, Pencil, Shapes,
@@ -134,91 +135,39 @@ export function LayersPanel({
                   </button>
                 )}
 
-                <button
-                  type="button" className="icon-button icon-button--tight"
-                  aria-label={`Rename ${layer.name}`}
-                  onClick={() => { setRenaming(layer.id); setRenameDraft(layer.name); }}
-                >
-                  <Pencil aria-hidden="true" size={14} />
-                </button>
-                <button
-                  type="button" className="icon-button icon-button--tight"
-                  aria-label={`${layer.visible ? "Hide" : "Show"} ${layer.name}`}
-                  aria-pressed={!layer.visible}
-                  onClick={() => onToggleVisibility(layer.id, !layer.visible)}
-                >
-                  {layer.visible ? <Eye aria-hidden="true" size={15} /> : <EyeOff aria-hidden="true" size={15} />}
-                </button>
-                <button
-                  type="button" className="icon-button icon-button--tight"
-                  aria-label={`${layer.locked ? "Unlock" : "Lock"} ${layer.name}`}
-                  aria-pressed={layer.locked}
-                  onClick={() => onToggleLock(layer.id, !layer.locked)}
-                >
-                  {layer.locked ? <Lock aria-hidden="true" size={15} /> : <LockOpen aria-hidden="true" size={15} />}
-                </button>
-                <button
-                  type="button" className="icon-button icon-button--tight"
-                  aria-label={`${soloLayerIds.includes(layer.id) ? "Stop soloing" : "Solo"} ${layer.name}`}
-                  aria-pressed={soloLayerIds.includes(layer.id)}
-                  onClick={() => onToggleSolo(layer.id)}
-                >
-                  <Headphones aria-hidden="true" size={15} />
-                </button>
+                <IconButton size="sm" label={`Rename ${layer.name}`} icon={Pencil}
+                  onClick={() => { setRenaming(layer.id); setRenameDraft(layer.name); }} />
+                <IconButton size="sm" label={`${layer.visible ? "Hide" : "Show"} ${layer.name}`}
+                  icon={layer.visible ? Eye : EyeOff} pressed={!layer.visible}
+                  onClick={() => onToggleVisibility(layer.id, !layer.visible)} />
+                <IconButton size="sm" label={`${layer.locked ? "Unlock" : "Lock"} ${layer.name}`}
+                  icon={layer.locked ? Lock : LockOpen} pressed={layer.locked}
+                  onClick={() => onToggleLock(layer.id, !layer.locked)} />
+                <IconButton size="sm" label={`${soloLayerIds.includes(layer.id) ? "Stop soloing" : "Solo"} ${layer.name}`}
+                  icon={Headphones} pressed={soloLayerIds.includes(layer.id)}
+                  onClick={() => onToggleSolo(layer.id)} />
                 {layer.kind === "group" ? (
-                  <button
-                    type="button" className="icon-button icon-button--tight"
-                    aria-label={`${isolateGroupId === layer.id ? "Stop isolating" : "Isolate"} ${layer.name}`}
-                    aria-pressed={isolateGroupId === layer.id}
-                    onClick={() => onToggleIsolate(layer.id)}
-                  >
-                    <Focus aria-hidden="true" size={15} />
-                  </button>
+                  <IconButton size="sm" label={`${isolateGroupId === layer.id ? "Stop isolating" : "Isolate"} ${layer.name}`}
+                    icon={Focus} pressed={isolateGroupId === layer.id}
+                    onClick={() => onToggleIsolate(layer.id)} />
                 ) : null}
                 {isTopLevel ? (
                   <>
-                    <button
-                      type="button" className="icon-button icon-button--tight"
-                      aria-label={`Move ${layer.name} up the stack`}
+                    <IconButton size="sm" label={`Move ${layer.name} up the stack`} icon={MoveUp}
                       disabled={topLevelIndex >= topLevelIds.length - 1}
-                      onClick={() => onReorder(layer.id, topLevelIndex + 1)}
-                    >
-                      <MoveUp aria-hidden="true" size={14} />
-                    </button>
-                    <button
-                      type="button" className="icon-button icon-button--tight"
-                      aria-label={`Move ${layer.name} down the stack`}
+                      onClick={() => onReorder(layer.id, topLevelIndex + 1)} />
+                    <IconButton size="sm" label={`Move ${layer.name} down the stack`} icon={MoveDown}
                       disabled={topLevelIndex <= 0}
-                      onClick={() => onReorder(layer.id, topLevelIndex - 1)}
-                    >
-                      <MoveDown aria-hidden="true" size={14} />
-                    </button>
+                      onClick={() => onReorder(layer.id, topLevelIndex - 1)} />
                   </>
                 ) : (
-                  <button
-                    type="button" className="icon-button icon-button--tight"
-                    aria-label={`Move ${layer.name} out to the top level`}
-                    onClick={() => onMoveIntoGroup(layer.id, null)}
-                  >
-                    <FolderInput aria-hidden="true" size={14} />
-                  </button>
+                  <IconButton size="sm" label={`Move ${layer.name} out to the top level`} icon={FolderInput}
+                    onClick={() => onMoveIntoGroup(layer.id, null)} />
                 )}
-                <button
-                  type="button" className="icon-button icon-button--tight"
-                  aria-label={`Duplicate ${layer.name}`}
-                  disabled={!isTopLevel}
-                  onClick={() => onDuplicate(layer.id)}
-                >
-                  <Copy aria-hidden="true" size={14} />
-                </button>
-                <button
-                  type="button" className="icon-button icon-button--tight"
-                  aria-label={`Remove ${layer.name}`}
-                  disabled={layer.locked}
-                  onClick={() => onRemove(layer.id)}
-                >
-                  <Trash2 aria-hidden="true" size={15} />
-                </button>
+                <IconButton size="sm" label={`Duplicate ${layer.name}`} icon={Copy}
+                  disabled={!isTopLevel} onClick={() => onDuplicate(layer.id)} />
+                <IconButton size="sm" label={`Remove ${layer.name}`} icon={Trash2}
+                  disabled={layer.locked} onClick={() => onRemove(layer.id)} />
               </div>
             </li>
           );
