@@ -1,4 +1,6 @@
 import { z } from "zod";
+import { layerSchema } from "./layer";
+import { swatchSchema } from "./vector";
 
 export const PHOTO_DOCUMENT_SCHEMA_VERSION = 1 as const;
 
@@ -38,11 +40,21 @@ export type CreatePhotoDocumentInput = z.input<typeof createPhotoDocumentInputSc
 export const photoDocumentSchema = z.object({
   id: z.string().min(1),
   schemaVersion: z.literal(PHOTO_DOCUMENT_SCHEMA_VERSION),
+  // Layers are the shared engine's model, not a photo-specific one. A video sequence in
+  // Phase 5 consumes the same tree.
+  layers: z.array(layerSchema).max(500).default([]),
   widthPx: z.number().int().min(1).max(32768),
   heightPx: z.number().int().min(1).max(32768),
   resolutionPpi: z.number().min(1).max(2400),
   orientation: documentOrientationSchema,
   background: documentBackgroundSchema,
+  /**
+   * Named colours and gradients shared across the document.
+   *
+   * Kept here rather than on each object that uses one, so changing a brand colour changes
+   * every shape, stroke, and fill painted with it in one edit rather than in forty.
+   */
+  swatches: z.array(swatchSchema).max(256).default([]),
   createdAt: z.string().datetime(),
 });
 
