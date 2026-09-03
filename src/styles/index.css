@@ -3484,7 +3484,13 @@ dialog {
   border: 0;
   inline-size: 88px;
 }
-.anchor-grid legend { padding: 0; color: var(--text-tertiary); font-size: var(--text-2xs); text-transform: uppercase; letter-spacing: 0.04em; }
+/*
+ * The legend sizes itself, the dots do not.
+ *
+ * The fieldset is pinned to 88px so the nine anchor dots stay square, and the legend inherited
+ * that width — so "Anchor content to" broke across two lines mid-phrase.
+ */
+.anchor-grid legend { padding: 0; inline-size: max-content; color: var(--text-tertiary); font-size: var(--text-2xs); text-transform: uppercase; letter-spacing: 0.04em; white-space: nowrap; }
 .anchor-grid label { display: grid; place-items: center; block-size: 24px; cursor: pointer; }
 .anchor-grid input { position: absolute; opacity: 0; }
 .anchor-dot { inline-size: 10px; block-size: 10px; border: 1px solid var(--border-strong); border-radius: var(--radius-xs); }
