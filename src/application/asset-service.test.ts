@@ -140,10 +140,29 @@ describe("AssetService", () => {
     expect(updated[0].availabilityReason).toContain("private storage");
   });
 
-  it("separates a permission problem from a missing file", async () => {
+  it("stays available on the durable copy when the handle's permission is denied", async () => {
     const created = await project();
     const file = imageFile("locked.jpg");
     await assets.registerOne(created.id, { file, handle: handleFor(file, "denied") });
+
+    // Every import keeps a copy, so a revoked handle is an inconvenience rather than a loss.
+    // Reporting this one offline would send a person to relink a file Estro can already read.
+    expect(await assets.refreshAvailability(created.id)).toHaveLength(0);
+    expect((await assets.getAsset((await assets.listAssets(created.id))[0].id)).availability).toBe("available");
+  });
+
+  it("separates a permission problem from a missing file when there is no copy to fall back on", async () => {
+    const created = await project();
+    const file = imageFile("locked.jpg");
+    await assets.registerOne(created.id, { file, handle: handleFor(file, "denied") });
+    const stored = (await assets.listAssets(created.id))[0];
+
+    // Drop the copy, leaving only the handle — the pre-fix shape, and what a legacy record is.
+    await originals.remove((stored.locator as { sourceKey: string }).sourceKey);
+    await database.assetRecords.put({
+      ...stored,
+      locator: { locatorType: "file-system-handle", fileName: "locked.jpg" },
+    });
 
     const updated = await assets.refreshAvailability(created.id);
     expect(updated[0].availability).toBe("permission_required");

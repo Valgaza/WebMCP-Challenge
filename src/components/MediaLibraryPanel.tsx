@@ -6,7 +6,7 @@ import {
 } from "lucide-react";
 import type { AssetRecord, AssetSearch, ParsedAssetSearch } from "../domain/asset";
 import {
-  ALL_SUPPORTED_MEDIA_TYPES, MEDIA_FILE_EXTENSIONS, describeDurability, hasProxy,
+  MEDIA_FILE_EXTENSIONS, describeDurability, hasProxy,
 } from "../domain/asset";
 import type { AssetSearchResult, AssetService } from "../application/asset-service";
 import type { OrganizationService, OrganizationSnapshot } from "../application/organization-service";
@@ -38,12 +38,14 @@ interface MediaLibraryPanelProps {
   agentTarget?: string | null;
 }
 
-const ACCEPT = [
-  ...ALL_SUPPORTED_MEDIA_TYPES,
-  ...MEDIA_FILE_EXTENSIONS.image,
-  ...MEDIA_FILE_EXTENSIONS.video,
-  ...MEDIA_FILE_EXTENSIONS.audio,
-].join(",");
+/**
+ * Photographs only.
+ *
+ * The asset model still understands video and audio, because probing them is how a file that
+ * is not a photograph gets a clear answer rather than a decode failure. Offering them in the
+ * picker is a different thing: it invites an import that this product has nothing to do with.
+ */
+const ACCEPT = [...MEDIA_FILE_EXTENSIONS.image].join(",");
 
 const KIND_ICON = { image: ImageIcon, video: Film, audio: Music } as const;
 
@@ -167,9 +169,9 @@ export function MediaLibraryPanel({
   }
 
   /**
-   * The picker yields durable handles that always reflect the file on disk. The input
-   * fallback does not, so those files are copied into private storage instead — the fallback
-   * is a copy, not a session-only reference.
+   * Both paths copy the file into private storage. The picker additionally yields a handle,
+   * which reflects later edits to the file on disk, but the copy is what makes the import
+   * survive a reload without asking for permission again.
    */
   async function chooseFiles() {
     const picker = window.showOpenFilePicker;
@@ -179,8 +181,6 @@ export function MediaLibraryPanel({
         multiple: true,
         types: [
           { description: "Images", accept: { "image/*": MEDIA_FILE_EXTENSIONS.image as never } },
-          { description: "Video", accept: { "video/*": MEDIA_FILE_EXTENSIONS.video as never } },
-          { description: "Audio", accept: { "audio/*": MEDIA_FILE_EXTENSIONS.audio as never } },
         ],
       });
       const files = await Promise.all(handles.map((handle) => handle.getFile()));
@@ -483,7 +483,7 @@ export function MediaLibraryPanel({
             <FolderPlus aria-hidden="true" size={15} /> Import folder
           </button>
         )}
-        <p className="field-help">or drop images, MP4, MOV, WebM, WAV, MP3, AAC, Ogg, and FLAC files here</p>
+        <p className="field-help">or drop JPEG, PNG, WebP, AVIF, or GIF files here</p>
         <input
           ref={inputRef} type="file" multiple accept={ACCEPT} className="sr-only" tabIndex={-1}
           onChange={(event) => { void importFiles([...(event.target.files ?? [])]); event.target.value = ""; }}

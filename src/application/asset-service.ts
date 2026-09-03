@@ -840,10 +840,6 @@ export class AssetService {
   }): Promise<{ locator: SourceLocator; stagedKey: string | null; warnings: string[] }> {
     const warnings: string[] = [];
 
-    if (input.handle) {
-      // A permission-backed handle always reflects the file on disk, which beats a copy.
-      return { locator: { locatorType: "file-system-handle", fileName: input.name }, stagedKey: null, warnings };
-    }
     if (input.sessionOnly) {
       warnings.push("You chose to keep this file for this session only, so it will need relinking after a reload.");
       return { locator: { locatorType: "session-only", fileName: input.name }, stagedKey: null, warnings };
@@ -853,6 +849,16 @@ export class AssetService {
       return { locator: { locatorType: "session-only", fileName: input.name }, stagedKey: null, warnings };
     }
 
+    /*
+     * A handle is kept when we have one, but it is never the only copy.
+     *
+     * A handle always reflects the file as it is on disk, which is genuinely better than a
+     * copy — but it needs a user gesture to re-authorise after every reload, and a file the
+     * person moves or deletes is simply gone. Relying on it alone meant every file chosen
+     * through the picker came back needing a relink on the next visit, while the same file
+     * dragged onto the window survived, which is an absurd difference for a person to hit.
+     * So the bytes are always copied, and the handle rides along as a freshness optimisation.
+     */
     await input.report?.({ stage: `Storing ${input.name}` });
     const key = sourceStoreKey(input.assetId, input.sourceRevision);
     const reservation = await this.originals.reserve(input.file.size);
@@ -1059,20 +1065,26 @@ export class AssetService {
       return { availability: "unsupported", availabilityReason: record.editabilityReason };
     }
 
+    /*
+     * A handle is the better answer when it works, and never the last word when it does not.
+     *
+     * After a reload a stored handle reverts to needing permission, so asking it first and
+     * reporting whatever it says would mark a file offline that is sitting in private storage
+     * a few lines below. The handle is tried; anything short of success is remembered and the
+     * durable copy is consulted, which is the whole reason the copy exists.
+     */
+    let permissionBlocked = false;
     if (handle) {
       try {
         const permission = await handle.queryPermission?.({ mode: "read" });
         if (permission === "denied") {
-          return { availability: "permission_required", availabilityReason: "Estro needs permission to read this file again." };
+          permissionBlocked = true;
+        } else {
+          await handle.getFile();
+          return { availability: "available", availabilityReason: null };
         }
-        await handle.getFile();
-        return { availability: "available", availabilityReason: null };
       } catch (error) {
-        const parsed = toProjectError(error);
-        return {
-          availability: parsed.code === "ASSET_PERMISSION_REQUIRED" ? "permission_required" : "missing",
-          availabilityReason: parsed.message,
-        };
+        permissionBlocked = toProjectError(error).code === "ASSET_PERMISSION_REQUIRED";
       }
     }
 
@@ -1083,6 +1095,12 @@ export class AssetService {
         availability: "missing",
         availabilityReason: "The durable copy of this file is no longer in private storage. Relink it to continue.",
       };
+    }
+
+    // Only now, with no copy to fall back on, does a blocked handle decide the answer: the
+    // file is not gone, it is unreadable until the person grants access again.
+    if (permissionBlocked) {
+      return { availability: "permission_required", availabilityReason: "Estro needs permission to read this file again." };
     }
 
     if (record.locator.locatorType === "remote") {
