@@ -21,7 +21,7 @@ export function CommandPalette({ open, onClose, onRun }: CommandPaletteProps) {
   function run(commandId: EditorCommandId) { onRun(commandId); onClose(); }
 
   return (
-    <ModalDialog open={open} title="Search commands" description="Find a Phase 2 command by action, feature, or shortcut." onClose={onClose} initialFocusRef={inputRef} footer={<span className="command-palette__hint">↑↓ choose · Enter run · Esc close</span>}>
+    <ModalDialog open={open} title="Search commands" description="Find a command by action, feature, or shortcut." onClose={onClose} initialFocusRef={inputRef} footer={<span className="command-palette__hint">↑↓ choose · Enter run · Esc close</span>}>
       <div className="command-palette">
         <label className="search-field command-palette__search" htmlFor="command-search"><Search aria-hidden="true" size={16} /><span className="sr-only">Search commands</span><input ref={inputRef} id="command-search" type="search" value={query} onChange={(event) => { setQuery(event.target.value); setActiveIndex(0); }} onKeyDown={(event) => {
           if (event.key === "ArrowDown") { event.preventDefault(); setActiveIndex((index) => Math.min(results.length - 1, index + 1)); }

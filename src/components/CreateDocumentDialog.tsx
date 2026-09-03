@@ -129,7 +129,7 @@ export function CreateDocumentDialog({ open, projectId, expectedRevisionId, onCl
         </div>
         {backgroundChoice === "custom" ? <label className="color-field" htmlFor="document-color">Custom color <input id="document-color" type="color" value={customColor} onChange={(event) => setCustomColor(event.target.value)} /></label> : null}
         <p className="field-help" id="document-size-help">1–32,768 pixels per axis. Orientation follows the entered dimensions.</p>
-        <p className="field-help" id="document-resolution-help">Resolution is metadata until image resampling arrives in Phase 4.</p>
+        <p className="field-help" id="document-resolution-help">Used for print sizing and carried into exports. Pixel dimensions above are what the canvas uses.</p>
         {error ? <p className="field-error" id="document-create-error">{error.message}</p> : null}
       </form>
     </ModalDialog>

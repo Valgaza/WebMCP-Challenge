@@ -108,7 +108,7 @@ function createWorkspaceApi() {
       else if (change.type === "tool") workspace = { ...workspace, activeTool: change.tool };
       else if (change.type === "overlay") workspace = { ...workspace, overlays: { ...workspace.overlays, [change.overlay]: change.enabled } };
       else if (change.type === "distraction_free") workspace = { ...workspace, distractionFree: change.enabled };
-      else if (change.type === "selection") workspace = { ...workspace, selection: { type: change.selectionType, targetId: change.targetId } };
+      else if (change.type === "selection") workspace = { ...workspace, selection: { type: change.selectionType, targetId: change.targetId, targetIds: change.targetIds ?? [] } };
       else if (change.type === "dock") workspace = { ...workspace, leadingPanel: change.leadingPanel };
       else if (change.type === "panel") workspace = { ...workspace, panels: { ...workspace.panels, [change.panel]: { ...workspace.panels[change.panel], ...(change.open === undefined ? {} : { open: change.open }), ...(change.widthPx === undefined ? {} : { widthPx: change.widthPx }) } } };
       listeners.forEach((listener) => listener(workspace));

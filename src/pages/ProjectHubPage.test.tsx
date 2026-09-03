@@ -56,12 +56,13 @@ describe("ProjectHub", () => {
 
     renderHub(service);
 
-    expect(await screen.findByRole("heading", { name: "No projects yet" })).toBeInTheDocument();
-    await user.click(screen.getAllByRole("button", { name: /create project/i })[0]!);
+    expect(await screen.findByRole("heading", { name: "Nothing here yet" })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /start an empty project/i }));
     await user.type(screen.getByLabelText("Project name"), "Anniversary film");
     await user.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Create project" }));
 
-    await waitFor(() => expect(service.createProject).toHaveBeenCalledWith({ name: "Anniversary film", kind: "unassigned" }));
+    // Every project is a photo project, and it opens on a canvas rather than on instructions.
+    await waitFor(() => expect(service.createProject).toHaveBeenCalledWith({ name: "Anniversary film", kind: "photo" }));
     expect(await screen.findByRole("heading", { name: "Opened project workspace" })).toBeInTheDocument();
   });
 
@@ -99,7 +100,7 @@ describe("ProjectHub", () => {
     };
 
     renderHub(service);
-    await screen.findByRole("heading", { name: "No projects yet" });
+    await screen.findByRole("heading", { name: "Nothing here yet" });
     const trigger = screen.getByRole("button", { name: "New project" });
 
     await user.click(trigger);

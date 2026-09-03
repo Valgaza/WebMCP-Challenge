@@ -62,7 +62,7 @@ export function ProjectNameDialog({
       title={title}
       description={
         isCreate
-          ? "Start with a local project record. Photo and video document settings arrive in the next phase."
+          ? "A new photo project, with a canvas ready to work on. Everything stays in this browser."
           : mode === "rename"
             ? "The new name is saved in this browser."
             : mode === "save-as"
@@ -107,6 +107,7 @@ export function ProjectNameDialog({
             {fieldHelp}
           </p>
         )}
+
       </form>
     </ModalDialog>
   );

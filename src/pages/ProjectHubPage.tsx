@@ -1,5 +1,6 @@
 import {
   AlertTriangle,
+  Wand2,
   Check,
   Clock3,
   Database,
@@ -20,7 +21,9 @@ import type { RecoverableProjectSummary } from "../domain/project-persistence";
 import { ProjectError } from "../domain/project-error";
 import { projectService as defaultProjectService } from "../app/services";
 import { getWebMcpAvailability } from "../webmcp/model-context";
-import { ESTRO_TOOL_COUNT } from "../webmcp/site-tools";
+import { getRegisteredToolCount } from "../webmcp/site-tools";
+import { buildSampleProject } from "../application/sample-project";
+import { assetService, layerService, projectService } from "../app/services";
 
 type ProjectFilter = "all" | "recent" | "recoverable";
 
@@ -58,6 +61,7 @@ export function ProjectHub({ service = defaultProjectService }: ProjectHubProps)
   const [filter, setFilter] = useState<ProjectFilter>("all");
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(true);
+  const [sampleBusy, setSampleBusy] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [status, setStatus] = useState("");
   const [nameDialog, setNameDialog] = useState<
@@ -129,9 +133,37 @@ export function ProjectHub({ service = defaultProjectService }: ProjectHubProps)
   const selectedProject = projects.find((project) => project.id === selectedId) ?? null;
   const selectedRecovery = recoverableProjects.find((project) => project.projectId === selectedId) ?? null;
 
+  async function loadSample() {
+    setSampleBusy(true);
+    setStatus("Building the sample project…");
+    try {
+      const result = await buildSampleProject({
+        projects: projectService, assets: assetService, layers: layerService,
+      });
+      setStatus(result.warnings.length ? `${result.summary} ${result.warnings.join(" ")}` : result.summary);
+      await loadProjects();
+      // Both are in the list; the photo one opens because it shows something immediately.
+      navigate(`/editor/${result.projectId}`);
+    } catch (caught) {
+      setStatus(caught instanceof Error ? caught.message : "The sample project could not be built.");
+    } finally {
+      setSampleBusy(false);
+    }
+  }
+
   async function createProject(name: string) {
-    const project = await service.createProject({ name, kind: "unassigned" });
-    setStatus(`${project.name} was created and saved in this browser.`);
+    const project = await service.createProject({ name, kind: "photo" });
+
+    // The project opens on a canvas rather than on instructions for making one. Best-effort:
+    // a project that exists is worth keeping even if its document did not take.
+    let note = "";
+    await projectService.createPhotoDocument({
+      projectId: project.id,
+      widthPx: 2000, heightPx: 1400, resolutionPpi: 300,
+      orientation: "landscape", background: { type: "solid", color: "#ffffff" },
+    }).catch(() => { note = " Its image document could not be created; make one from the editor."; });
+
+    setStatus(`${project.name} was created and saved in this browser.${note}`);
     await loadProjects();
     navigate(`/editor/${project.id}`);
   }
@@ -207,8 +239,12 @@ export function ProjectHub({ service = defaultProjectService }: ProjectHubProps)
         <div className="webmcp-status" role="status" aria-label="WebMCP availability">
           <Sparkles aria-hidden="true" size={15} />
           <span>{webMcpAvailability === "available" ? "WebMCP detected" : "Manual controls"}</span>
-          <small>{webMcpAvailability === "available" ? `${ESTRO_TOOL_COUNT} tools ready` : "WebMCP unavailable"}</small>
+          <small>{webMcpAvailability === "available" ? `${getRegisteredToolCount()} tools ready` : "WebMCP unavailable"}</small>
         </div>
+        <button className="button button--secondary top-bar__sample" type="button" disabled={sampleBusy} onClick={() => void loadSample()}>
+          <Wand2 aria-hidden="true" size={16} />
+          {sampleBusy ? "Building…" : "Load sample"}
+        </button>
         <button className="button button--primary top-bar__primary" type="button" onClick={() => setNameDialog({ mode: "create" })}>
           <Plus aria-hidden="true" size={16} />
           New project
@@ -351,16 +387,25 @@ export function ProjectHub({ service = defaultProjectService }: ProjectHubProps)
         ) : (
           <section className="empty-state" aria-labelledby="empty-title">
             <Folder aria-hidden="true" size={24} />
-            <h2 id="empty-title">{query ? `No projects match “${query}”` : "No projects yet"}</h2>
-            <p>{query ? "Clear the search to see every local project." : "Create a project to begin. Your work stays in this browser."}</p>
+            <h2 id="empty-title">{query ? `No projects match “${query}”` : "Nothing here yet"}</h2>
+            <p>
+              {query
+                ? "Clear the search to see every local project."
+                : "Load the sample to get a photo document, three pictures, and a timeline you can edit straight away — by hand or by asking an agent. Everything stays in this browser."}
+            </p>
             {query ? (
               <button className="button button--secondary" type="button" onClick={() => setQuery("")}>
                 Clear search
               </button>
             ) : (
-              <button className="button button--primary" type="button" onClick={() => setNameDialog({ mode: "create" })}>
-                <Plus aria-hidden="true" size={16} /> Create project
-              </button>
+              <div className="empty-state__actions">
+                <button className="button button--primary" type="button" disabled={sampleBusy} onClick={() => void loadSample()}>
+                  <Wand2 aria-hidden="true" size={16} /> {sampleBusy ? "Building the sample…" : "Load the sample project"}
+                </button>
+                <button className="button button--secondary" type="button" onClick={() => setNameDialog({ mode: "create" })}>
+                  <Plus aria-hidden="true" size={16} /> Start an empty project
+                </button>
+              </div>
             )}
           </section>
         )}

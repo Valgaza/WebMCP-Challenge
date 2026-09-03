@@ -110,7 +110,12 @@ describe("Phase 2 editor workspace", () => {
     const sourceRevision = (await projectService.getProjectHistory(project.id)).headRevision.id;
     renderEditor();
     const canvas = await screen.findByRole("group", { name: "Image canvas" });
-    await user.click(screen.getByRole("button", { name: "Hand tool (H)" }));
+    const handTool = screen.getByRole("button", { name: "Hand tool (H)" });
+    await user.click(handTool);
+    // Selecting a tool goes through the workspace service, so the click returning is not the
+    // same as the tool being active. Waiting for the button to say so is what makes the pointer
+    // events below land on the tool they were meant for.
+    await waitFor(() => expect(handTool).toHaveAttribute("aria-pressed", "true"));
     fireEvent.pointerDown(canvas, { pointerId: 1, pointerType: "pen", button: 0, clientX: 100, clientY: 100, pressure: 0.5 });
     fireEvent.pointerMove(canvas, { pointerId: 1, pointerType: "pen", clientX: 132, clientY: 120, pressure: 0.5 });
     fireEvent.pointerUp(canvas, { pointerId: 1, pointerType: "pen", clientX: 132, clientY: 120 });

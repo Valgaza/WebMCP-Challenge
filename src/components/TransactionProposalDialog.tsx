@@ -11,7 +11,7 @@ interface TransactionProposalDialogProps {
 
 export function TransactionProposalDialog({ open, currentName, onClose, onSubmit }: TransactionProposalDialogProps) {
   const [projectName, setProjectName] = useState(currentName);
-  const [snapshotName, setSnapshotName] = useState("Before next phase");
+  const [snapshotName, setSnapshotName] = useState("Before this change");
   const [error, setError] = useState<string | null>(null);
   const [errorField, setErrorField] = useState<"project" | "snapshot" | "both">("both");
   const [pending, setPending] = useState(false);
@@ -21,7 +21,7 @@ export function TransactionProposalDialog({ open, currentName, onClose, onSubmit
   useEffect(() => {
     if (!open) return;
     setProjectName(currentName);
-    setSnapshotName("Before next phase");
+    setSnapshotName("Before this change");
     setError(null);
     setErrorField("both");
     setPending(false);
