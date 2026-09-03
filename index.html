@@ -4,14 +4,44 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#0d0f13" />
+    <meta name="color-scheme" content="dark" />
+    <title>Estro — a photo editor you can talk to</title>
     <meta
       name="description"
-      content="Estro is a calm, local-first photo and video editor built for direct and agent-assisted work."
+      content="A photo editor that does not assume you know what saturation means. Describe what you want and an agent moves the real controls, then tells you which ones and what they do. Everything stays in your browser."
     />
-    <title>Estro</title>
+
+    <!--
+      A shared link and the Devpost card both render from these. Without them the entry
+      appeared as a bare URL, which is a poor first impression for a product whose whole
+      argument is that it is careful about what it shows people.
+    -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Estro" />
+    <meta property="og:title" content="Estro — a photo editor you can talk to" />
+    <meta
+      property="og:description"
+      content="You don't need to know what saturation means. Say what you want, watch which control moves, and learn the word or don't. 55 WebMCP tools, entirely in your browser."
+    />
+    <meta name="twitter:card" content="summary" />
+
+    <!--
+      Inline so it needs no second request and cannot 404 on a static host that was not
+      configured for it. The aperture blades read at 16px, which is the only size that matters.
+    -->
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23151820'/%3E%3Cg fill='none' stroke='%236f9bf0' stroke-width='2.1' stroke-linecap='round'%3E%3Ccircle cx='16' cy='16' r='8.4'/%3E%3Cpath d='M16 7.6v7.2M23.3 20.2l-6.2-3.6M8.7 20.2l6.2-3.6'/%3E%3C/g%3E%3C/svg%3E"
+    />
+    <link rel="apple-touch-icon" href="/icon.svg" />
+    <link rel="manifest" href="/manifest.webmanifest" />
   </head>
   <body>
     <div id="root"></div>
+    <noscript>
+      Estro is an editor that runs entirely in your browser, so it needs JavaScript. Nothing is
+      uploaded either way.
+    </noscript>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

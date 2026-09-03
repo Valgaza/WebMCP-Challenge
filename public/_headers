@@ -1,0 +1,15 @@
+# Netlify and Cloudflare Pages read this file from the published directory.
+# It mirrors deploy/nginx.conf, so the app behaves the same however it is hosted.
+/*
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: no-referrer
+  Permissions-Policy: microphone=(self), camera=(), geolocation=()
+  Cross-Origin-Opener-Policy: same-origin
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'wasm-unsafe-eval' blob:; worker-src 'self' blob:; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' blob:; font-src 'self' data:; connect-src 'self' blob: data:; frame-ancestors 'none'; base-uri 'self'; form-action 'none'
+
+# The shell names the hashed asset files, so it must never be served from cache.
+/index.html
+  Cache-Control: no-cache, must-revalidate
+
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable
