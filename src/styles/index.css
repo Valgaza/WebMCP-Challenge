@@ -84,7 +84,7 @@
 .loading-block--panel-row { width: 100%; height: 64px; }
 .loading-block--property { width: 100%; height: 34px; }
 .editor-loading-canvas { position: absolute; inset: 0; display: grid; place-content: center; justify-items: center; gap: 16px; font-size: var(--text-sm); }
-.loading-block--canvas { width: min(520px, 52vw); aspect-ratio: 16 / 9; border: 1px solid var(--border-subtle); background: var(--canvas-surface); }
+.loading-block--canvas { width: min(520px, 52vw); aspect-ratio: 16 / 9; border: 1px solid var(--border-subtle); background: var(--canvas-backdrop); }
 
 .editor-top-bar {
   z-index: 30;
@@ -3053,330 +3053,6 @@ dialog {
     linear-gradient(to bottom, oklch(1 0 0 / 0.16) 1px, transparent 1px);
 }
 
-/* ---------------------------------------------------------------------------
-   Phase 5 — timeline, program monitor
-   --------------------------------------------------------------------------- */
-
-.program-monitor {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  align-items: center;
-  justify-content: center;
-  inline-size: 100%;
-  block-size: 100%;
-  padding: 16px;
-}
-
-.program-monitor__surface {
-  max-inline-size: 100%;
-  max-block-size: calc(100% - 40px);
-  border: 1px solid var(--border-subtle);
-  border-radius: 6px;
-  background: #000;
-  object-fit: contain;
-}
-
-.program-monitor__status {
-  display: flex;
-  gap: 14px;
-  align-items: baseline;
-  color: var(--text-tertiary);
-  font-size: var(--text-xs);
-}
-
-.program-monitor__status output {
-  color: var(--text-primary);
-  font-family: ui-monospace, monospace; font-size: var(--text-sm);
-}
-
-/**
- * The blueprint's 272px bottom workspace, added as a third row only when a sequence exists.
- * Photo documents keep the two-row shell, so nothing reserves space it does not need.
- */
-.editor-shell--with-timeline { grid-template-rows: 52px minmax(0, 1fr) 272px; }
-
-/* ---------------------------------- timeline --------------------------------- */
-
-.timeline {
-  grid-column: 1 / -1;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  min-block-size: 0;
-  padding: 10px 12px 12px;
-  border-block-start: 1px solid var(--border-subtle);
-  background: var(--surface-1);
-  overflow: hidden;
-}
-
-.timeline__head { display: flex; align-items: center; flex-wrap: wrap; gap: 10px 14px; }
-.timeline__head h2 { margin: 2px 0 0; font-size: var(--text-lg); }
-.timeline__timecode { color: var(--text-primary); font-family: ui-monospace, monospace; font-size: var(--text-base); }
-.timeline__tools { display: flex; flex-wrap: wrap; gap: 4px; }
-.timeline__view-controls { display: flex; gap: 3px; margin-inline-start: auto; }
-
-.timeline__body { display: grid; grid-template-columns: 180px minmax(0, 1fr); gap: 8px; min-block-size: 0; }
-.timeline__headers { display: flex; flex-direction: column; gap: 4px; }
-/* Two equal columns rather than a flex row, so neither label can squeeze the other out. */
-.timeline__headers-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; margin-block-end: 4px; }
-.timeline__headers-actions .button { justify-content: center; padding-inline: 6px; white-space: nowrap; }
-.timeline__scroll { overflow-x: auto; overflow-y: hidden; }
-
-.timeline__ruler {
-  position: relative;
-  block-size: 26px;
-  margin-block-end: 4px;
-  border: 1px solid var(--border-subtle);
-  border-radius: 5px;
-  background: var(--surface-2);
-  cursor: ew-resize;
-}
-
-.timeline__ruler:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
-
-.timeline__tick {
-  position: absolute;
-  inset-block-start: 5px;
-  padding-inline-start: 4px;
-  border-inline-start: 1px solid var(--border-strong);
-  color: var(--text-tertiary);
-  font-family: ui-monospace, monospace; font-size: var(--text-2xs);
-  pointer-events: none;
-  white-space: nowrap;
-}
-
-.timeline__work-area {
-  position: absolute;
-  inset-block: 0;
-  background: color-mix(in oklch, var(--accent) 16%, transparent);
-  border-inline: 1px solid color-mix(in oklch, var(--accent) 60%, transparent);
-  pointer-events: none;
-}
-
-.timeline__playhead {
-  position: absolute;
-  inset-block: -2px;
-  inline-size: 2px;
-  background: var(--accent);
-  box-shadow: 0 0 6px color-mix(in oklch, var(--accent) 60%, transparent);
-  pointer-events: none;
-}
-.timeline__playhead--lanes { inset-block: 0; }
-
-.timeline__lanes { position: relative; display: flex; flex-direction: column; gap: 4px; }
-
-/*
- * `align-content: center` centres the rows, so anything taller than the fixed track height
- * is clipped at BOTH ends — and an audio head, which carries one more control than a video
- * head, overflowed by exactly enough to cut its own name off the top. Starting the content
- * keeps the name visible whatever else has to be trimmed, and the tighter buttons below mean
- * nothing has to be.
- */
-.timeline__track-head {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  align-content: start;
-  gap: 3px;
-  padding: 4px 8px;
-  border: 1px solid var(--border-subtle);
-  border-radius: 5px;
-  background: var(--surface-2);
-  overflow: hidden;
-}
-
-/* Six controls in a 160px header: 24px is the smallest that still meets the minimum
- * target size, and it is what lets an audio track keep them on one row. */
-.timeline__track-head .icon-button--tight {
-  inline-size: 24px;
-  block-size: 24px;
-  min-inline-size: 24px;
-  min-block-size: 24px;
-}
-
-.timeline__track-head--audio { border-inline-start: 3px solid color-mix(in oklch, var(--success) 60%, transparent); }
-.timeline__track-head--video { border-inline-start: 3px solid color-mix(in oklch, var(--accent) 60%, transparent); }
-
-.timeline__track-name input {
-  inline-size: 100%;
-  padding: 2px 4px;
-  border: 1px solid transparent;
-  border-radius: 4px;
-  background: transparent;
-  color: var(--text-primary);
-  font-size: var(--text-xs);
-  font-weight: var(--weight-strong);
-}
-.timeline__track-name input:hover { border-color: var(--border-subtle); }
-.timeline__track-name input:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
-
-.timeline__track-toggles { display: flex; flex-wrap: wrap; gap: 1px; }
-.timeline__track-mix { display: flex; gap: 4px; }
-.timeline__track-mix input[type="range"] { inline-size: 100%; block-size: 12px; }
-.solo-glyph { font-size: var(--text-2xs); font-weight: var(--weight-strong); }
-
-.timeline__lane {
-  position: relative;
-  border: 1px solid var(--border-subtle);
-  border-radius: 5px;
-  background: var(--surface-2);
-}
-.timeline__lane--locked { background: repeating-linear-gradient(135deg, var(--surface-2), var(--surface-2) 6px, var(--surface-1) 6px, var(--surface-1) 12px); }
-
-.timeline__clip {
-  position: absolute;
-  inset-block: 3px;
-  min-inline-size: 6px;
-  border: 1px solid color-mix(in oklch, var(--accent) 55%, var(--border-strong));
-  border-radius: 4px;
-  background: color-mix(in oklch, var(--accent) 24%, var(--surface-3));
-  overflow: hidden;
-}
-
-.timeline__lane--audio .timeline__clip {
-  border-color: color-mix(in oklch, var(--success) 50%, var(--border-strong));
-  background: color-mix(in oklch, var(--success) 20%, var(--surface-3));
-}
-
-.timeline__clip-body {
-  display: block;
-  inline-size: 100%;
-  block-size: 100%;
-  padding-inline: 6px;
-  border: 0;
-  background: none;
-  color: var(--text-primary);
-  font-size: var(--text-2xs);
-  text-align: start;
-  cursor: grab;
-}
-.timeline__clip-body:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
-
-.timeline__clip--selected { outline: 2px solid var(--focus); outline-offset: 1px; }
-/* Disabled clips read as inert through pattern, not colour alone. */
-.timeline__clip--disabled { opacity: 0.45; border-style: dashed; }
-/* Relationships are shown with an edge marker as well as a tint, so colour is never the only cue. */
-.timeline__clip--linked { border-block-start: 3px solid var(--agent-b); }
-.timeline__clip--grouped { border-block-end: 3px dotted var(--warning); }
-.timeline__clip--nested { background-image: repeating-linear-gradient(45deg, transparent, transparent 5px, color-mix(in oklch, var(--accent) 12%, transparent) 5px, color-mix(in oklch, var(--accent) 12%, transparent) 10px); }
-
-.timeline__clip-name { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.timeline__clip-label {
-  position: absolute;
-  inset-block-end: 2px;
-  inset-inline-start: 6px;
-  padding: 0 4px;
-  border-radius: 3px;
-  background: var(--surface-1);
-  color: var(--text-secondary);
-  font-size: var(--text-2xs);
-}
-
-.timeline__waveform { position: absolute; inset: 9px 0 0; inline-size: 100%; opacity: 0.55; pointer-events: none; }
-.timeline__waveform path { stroke: var(--text-primary); stroke-width: 1; fill: none; }
-.timeline__waveform-pending { position: absolute; inset-block-end: 2px; inset-inline-start: 6px; color: var(--text-tertiary); font-size: var(--text-2xs); }
-
-.timeline__trim {
-  position: absolute;
-  inset-block: 0;
-  inline-size: 8px;
-  cursor: ew-resize;
-  background: color-mix(in oklch, var(--text-primary) 12%, transparent);
-}
-.timeline__trim:focus-visible { outline: 2px solid var(--focus); outline-offset: -1px; }
-.timeline__trim--start { inset-inline-start: 0; }
-.timeline__trim--end { inset-inline-end: 0; }
-
-.timeline__transition {
-  position: absolute;
-  inset-block: 3px;
-  border-radius: 3px;
-  background: repeating-linear-gradient(90deg, color-mix(in oklch, var(--warning) 35%, transparent), color-mix(in oklch, var(--warning) 35%, transparent) 4px, transparent 4px, transparent 8px);
-  pointer-events: none;
-}
-
-.timeline__drop-indicator { position: absolute; inset-block: 0; inline-size: 2px; background: var(--focus); }
-
-.timeline__empty {
-  position: absolute;
-  inset-block-start: 50%;
-  inset-inline-start: 10px;
-  transform: translateY(-50%);
-  color: var(--text-tertiary);
-  font-size: var(--text-2xs);
-}
-
-.timeline__markers { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
-.timeline__markers ul { display: flex; flex-wrap: wrap; gap: 6px; margin: 0; padding: 0; list-style: none; }
-.timeline__markers button {
-  display: inline-flex;
-  gap: 6px;
-  align-items: center;
-  padding: 4px 8px;
-  border: 1px solid var(--border-subtle);
-  border-radius: 5px;
-  background: var(--surface-2);
-  color: var(--text-secondary);
-  font-size: var(--text-2xs);
-  cursor: pointer;
-}
-.timeline__marker-dot { inline-size: 8px; block-size: 8px; border-radius: 50%; }
-
-/* ---------------------------------- monitors --------------------------------- */
-
-.monitor-switch { display: inline-flex; gap: 2px; padding: 2px; border-radius: 6px; background: var(--surface-2); }
-.monitor-switch button {
-  padding: 4px 10px;
-  border: 0;
-  border-radius: 4px;
-  background: transparent;
-  color: var(--text-secondary);
-  font-size: var(--text-xs);
-  cursor: pointer;
-}
-.monitor-switch button[aria-selected="true"] { background: var(--surface-3); color: var(--text-primary); }
-
-.program-monitor__quality { color: var(--text-tertiary); font-size: var(--text-2xs); }
-.program-monitor--fullscreen { position: absolute; inset: 0; background: var(--canvas-backdrop); }
-
-.monitor-transport { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding-block-start: 6px; }
-.monitor-transport__buttons { display: flex; gap: 2px; }
-.monitor-transport__timecode input {
-  inline-size: 118px;
-  padding: 4px 6px;
-  border: 1px solid var(--border-subtle);
-  border-radius: 5px;
-  background: var(--surface-2);
-  color: var(--text-primary);
-  font-family: ui-monospace, monospace; font-size: var(--text-sm);
-}
-.monitor-transport__timecode input[aria-invalid="true"] { border-color: var(--danger); }
-.monitor-transport__duration { color: var(--text-tertiary); font-family: ui-monospace, monospace; font-size: var(--text-xs); }
-
-.source-monitor {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  inline-size: min(100%, 720px);
-  padding: 12px;
-  border: 1px solid var(--border-subtle);
-  border-radius: 8px;
-  background: var(--surface-1);
-}
-.source-monitor--empty { color: var(--text-secondary); font-size: var(--text-sm); }
-.source-monitor__head { display: flex; align-items: baseline; gap: 8px; }
-.source-monitor__head h3 { margin: 0; font-size: var(--text-base); }
-.source-monitor__head span { margin-inline-start: auto; color: var(--text-tertiary); font-size: var(--text-2xs); }
-.source-monitor__surface { inline-size: 100%; aspect-ratio: 16 / 9; border-radius: 6px; background: #000; }
-.source-monitor__audio { display: flex; flex-direction: column; gap: 6px; }
-.source-monitor__waveform-placeholder {
-  block-size: 72px;
-  border-radius: 6px;
-  background: repeating-linear-gradient(90deg, var(--surface-2), var(--surface-2) 2px, var(--surface-3) 2px, var(--surface-3) 4px);
-}
-.source-monitor__marks { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
-.source-monitor__actions { display: flex; flex-wrap: wrap; align-items: end; gap: 8px; }
-
 /* --------------------------------- media panel -------------------------------- */
 
 .media-filters {
@@ -3492,28 +3168,6 @@ dialog {
 }
 .media-tile__matched { color: var(--text-tertiary) !important; font-style: italic; }
 
-.media-subclips, .media-sequences { display: flex; flex-direction: column; gap: 4px; }
-.media-subclips h3, .media-sequences h3 { margin: 0; font-size: var(--text-2xs); text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-tertiary); }
-.media-sequences__head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-.media-subclips ul, .media-sequences ul { display: flex; flex-direction: column; gap: 2px; margin: 0; padding: 0; list-style: none; }
-.media-subclips li, .media-sequences li { display: flex; align-items: center; gap: 4px; }
-.media-subclips li > button:first-child, .media-sequences li > button:first-child {
-  flex: 1;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 5px 8px;
-  border: 1px solid transparent;
-  border-radius: 5px;
-  background: var(--surface-2);
-  color: var(--text-secondary);
-  font-size: var(--text-xs);
-  text-align: start;
-  cursor: pointer;
-}
-.media-sequences li > button.is-active { border-color: var(--accent); color: var(--text-primary); }
-.media-sequences li small { margin-inline-start: auto; color: var(--text-tertiary); font-size: var(--text-2xs); }
-
 .media-proposal {
   display: flex;
   flex-direction: column;
@@ -3559,31 +3213,9 @@ dialog {
 .anchor-dot--active { background: var(--accent); border-color: var(--accent); }
 .anchor-grid input:focus-visible + span + .anchor-dot { outline: 2px solid var(--focus); outline-offset: 2px; }
 
-.clip-inspector { display: flex; flex-direction: column; gap: 10px; }
-.clip-inspector h3 { margin: 0; font-size: var(--text-xs); text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-tertiary); }
-.property-list--inline { display: flex; gap: 14px; }
-.property-list--inline > div { display: flex; gap: 6px; padding: 0; min-height: 0; }
-
 /* ---------------------------------- export ----------------------------------- */
 
 .export-panel { display: flex; flex-direction: column; gap: 10px; }
-.export-modes { display: flex; gap: 2px; padding: 2px; border-radius: 6px; background: var(--surface-2); }
-.export-modes button {
-  flex: 1;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 4px;
-  padding: 5px;
-  border: 0;
-  border-radius: 4px;
-  background: transparent;
-  color: var(--text-secondary);
-  font-size: var(--text-xs);
-  cursor: pointer;
-}
-.export-modes button[aria-selected="true"] { background: var(--surface-3); color: var(--text-primary); }
-.export-modes button:disabled { opacity: 0.45; cursor: not-allowed; }
 
 .export-limitations { color: var(--text-tertiary); font-size: var(--text-2xs); }
 .export-limitations ul { margin: 6px 0 0; padding-inline-start: 16px; display: flex; flex-direction: column; gap: 4px; }
@@ -3678,23 +3310,12 @@ dialog {
 
 /* -------------------------- narrow-window adaptations ------------------------ */
 
-@media (max-width: 1179px) {
-  .timeline__body { grid-template-columns: 132px minmax(0, 1fr); }
-  .timeline__tools { inline-size: 100%; }
-  .timeline__view-controls { margin-inline-start: 0; }
-}
-
 @media (max-width: 899px) {
-  /* The timeline stays operable: headers collapse to their toggles, and every pointer edit
-     remains reachable through the tool row and the clip inspector. */
-  .timeline__body { grid-template-columns: 96px minmax(0, 1fr); }
-  .timeline__track-mix { display: none; }
-  .source-monitor__actions { flex-direction: column; align-items: stretch; }
   .media-view-switch button span { display: none; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .timeline__clip, .crop-overlay__frame, .layer-canvas { transition: none !important; }
+  .crop-overlay__frame, .layer-canvas { transition: none !important; }
 }
 
 /* The document's own selection target sits behind any overlay so a crop handle wins the click. */
@@ -3730,21 +3351,6 @@ dialog {
 .activity-center--cancelled .activity-center__icon { color: var(--text-tertiary); }
 .activity-center--awaiting_confirmation { border-color: var(--warning); }
 .activity-center--awaiting_confirmation .activity-center__icon { color: var(--warning); }
-
-/* ------------------------------- audio meters -------------------------------- */
-
-.audio-meters { display: flex; flex-direction: column; gap: 3px; padding-block-start: 6px; }
-.audio-meter { display: grid; grid-template-columns: 64px minmax(0, 1fr) auto; gap: 6px; align-items: center; }
-.audio-meter__name { color: var(--text-tertiary); font-size: var(--text-2xs); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.audio-meter__bar {
-  block-size: 6px;
-  border-radius: 3px;
-  background: var(--surface-3);
-  overflow: hidden;
-}
-.audio-meter__bar > span { display: block; block-size: 100%; background: var(--success); }
-.audio-meter--clipping .audio-meter__bar > span { background: var(--danger); }
-.audio-meter__clip { color: var(--danger); font-size: var(--text-2xs); font-weight: var(--weight-strong); text-transform: uppercase; }
 
 /*
  * Accessibility modes chosen in the application, as against read from the system.
