@@ -596,24 +596,36 @@ kbd {
  * a readable list of what the Inspector can do, and opening one costs a click instead of a
  * thousand pixels of scrolling.
  */
+/*
+ * A section header the size of a header, not the size of a control.
+ *
+ * These were 13px/650 with a rule under every group, so twenty of them made the panel look
+ * like a table of contents with the contents hidden. A quieter 12px header and a line only
+ * under an *open* group lets the list of closed sections read as one block, which is what it
+ * is, and gives the group you actually opened a visible edge.
+ */
 .inspector-section {
   display: grid;
-  gap: 10px;
-  padding-block-end: 10px;
-  border-block-end: 1px solid color-mix(in oklch, var(--border-subtle) 60%, transparent);
+  gap: 8px;
+  padding-block-end: 2px;
+}
+
+.inspector-section[data-open="true"] {
+  padding-block-end: 12px;
+  border-block-end: 1px solid color-mix(in oklch, var(--border-subtle) 55%, transparent);
 }
 
 .inspector-section:last-child { padding-block-end: 0; border-block-end: 0; }
 
-.inspector-section__heading { margin: 0; font-size: var(--text-sm); }
+.inspector-section__heading { margin: 0; font-size: var(--text-xs); }
 
 .inspector-section__toggle {
   display: flex;
   align-items: center;
-  gap: 7px;
+  gap: 6px;
   width: 100%;
-  min-height: 32px;
-  padding-inline: 6px;
+  min-height: 28px;
+  padding-inline: 5px;
   border: 0;
   border-radius: var(--radius-md);
   background: transparent;
@@ -646,7 +658,7 @@ kbd {
  */
 .inspector-section[data-open="false"] .inspector-section__body { display: none; }
 
-.inspector-section__body { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; }
+.inspector-section__body { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; padding-inline: 5px; }
 
 /*
  * Most group titles are the names the semantic-target registry already uses, which are also
