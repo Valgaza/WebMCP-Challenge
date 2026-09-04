@@ -182,12 +182,31 @@ export function ProjectWorkspace({ service = projectService, workspaceApi = defa
   const [agentTarget, setAgentTarget] = useState<string | null>(null);
   const [spacePressed, setSpacePressed] = useState(false);
   const autosaveGeneration = useRef(0);
+  /*
+   * What the person has already dismissed.
+   *
+   * Some of these errors are events — a command that needed a selection, an edit that failed —
+   * and are raised once. Others are a standing condition: a layer whose image cannot be read
+   * raises its warning on *every* composite, and autosave re-reports itself after every edit.
+   * For those, dismissing did nothing at all: the next render put the identical banner straight
+   * back, and `role="alert"` announced it again each time.
+   *
+   * So a dismissal is remembered against the message it dismissed. A different problem still
+   * interrupts; the same one waits until it is actually a different one.
+   */
+  const dismissedError = useRef<string | null>(null);
   const cancelDiscardRef = useRef<HTMLButtonElement>(null);
   const workspaceHeadingRef = useRef<HTMLHeadingElement>(null);
   const stageRef = useRef<HTMLDivElement>(null);
   const hasFocusedRoute = useRef(false);
   const dragRef = useRef<{ pointerId: number; startX: number; startY: number; panX: number; panY: number } | null>(null);
   const resizeRef = useRef<{ pointerId: number; panel: "left" | "inspector"; startX: number; width: number } | null>(null);
+
+  const raiseError = useCallback((message: string | null) => {
+    if (message === null) { dismissedError.current = null; setError(null); return; }
+    if (message === dismissedError.current) return;
+    setError(message);
+  }, []);
 
   const trackAutosave = useCallback((targetProjectId: string) => {
     if (!service.waitForAutosave) { setSaveState("draft"); return; }
@@ -198,8 +217,8 @@ export function ProjectWorkspace({ service = projectService, workspaceApi = defa
       if (generation !== autosaveGeneration.current) return;
       if (nextPersistence) setPersistence(nextPersistence);
       setSaveState("saved"); setStatus("Autosave completed. The current revision is durable.");
-    }).catch(() => { if (generation !== autosaveGeneration.current) return; setSaveState("failed"); setError("Autosave did not complete. Your last durable revision is preserved; use Save to retry."); });
-  }, [service]);
+    }).catch(() => { if (generation !== autosaveGeneration.current) return; setSaveState("failed"); raiseError("Autosave did not complete. Your last durable revision is preserved; use Save to retry."); });
+  }, [service, raiseError]);
 
   const loadWorkspace = useCallback(async () => {
     if (!projectId) return;
@@ -979,7 +998,7 @@ export function ProjectWorkspace({ service = projectService, workspaceApi = defa
       {error ? (
         <div className="editor-error" role="alert">
           <strong>Estro needs attention</strong><span>{error}</span>
-          <button className="icon-button" type="button" aria-label="Dismiss error" onClick={() => setError(null)}>×</button>
+          <button className="icon-button" type="button" aria-label="Dismiss error" onClick={() => { dismissedError.current = error; setError(null); }}>×</button>
         </div>
       ) : null}
       <p className="compact-workspace-advisory">A wider window gives more precise canvas control. Every action here stays available through the Inspector, the timeline menus, and the command search.</p>
@@ -1263,17 +1282,21 @@ export function ProjectWorkspace({ service = projectService, workspaceApi = defa
                   displayFilter={channelFilterCss(channelView)}
                   onWarnings={(warnings) => {
                     /*
-                     * A picture that will not draw is an error, not a status.
+                     * Render warnings go to the status line, not the error banner.
                      *
-                     * Every render warning went to the shared status line — the same quiet,
-                     * transient place that reports "Hand tool active." So "Add to canvas" put
-                     * a layer in the panel, left the canvas empty, and said so in a sentence
-                     * that had already gone by the time anyone looked. A layer that cannot be
-                     * drawn gets the error banner; the rest still pass through as status.
+                     * Promoting them to the banner was meant to stop "Add to canvas" failing
+                     * silently — a layer appeared in the panel, the canvas stayed empty, and
+                     * the only word about it went past in a transient line nobody was looking
+                     * at. But a layer that cannot be drawn is a standing condition, not an
+                     * event: it re-reports itself on every composite, so the banner came back
+                     * after every edit and `role="alert"` announced it each time. Dismissing
+                     * it was futile.
+                     *
+                     * Quiet again until it has a home that suits a condition rather than an
+                     * event — against the layer in the Layers panel, most likely, where the
+                     * layer it is about actually is.
                      */
-                    if (!warnings.length) return;
-                    const undrawable = warnings.find((warning) => /could not be drawn|could not be read/.test(warning));
-                    if (undrawable) setError(undrawable); else setStatus(warnings[0]);
+                    if (warnings.length) setStatus(warnings[0]);
                   }}
                 />
                 <ChannelFilterDefs view={channelView} />
