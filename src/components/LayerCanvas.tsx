@@ -47,6 +47,32 @@ export function LayerCanvas({
 }: LayerCanvasProps) {
   const hostRef = useRef<HTMLCanvasElement>(null);
   const baselineRef = useRef<HTMLCanvasElement>(null);
+  /*
+   * The warning callback must not be able to schedule a render.
+   *
+   * `onWarnings` was in the effect's dependency array and the parent passes an inline arrow,
+   * so it was a new function on every parent render — and every parent render therefore
+   * re-composited the whole document. Typing in a field, moving the pointer, a status message
+   * changing: each one re-read the project history and every asset from IndexedDB, reallocated
+   * a full-size canvas, and replayed every stroke. Held in a ref, it stays current without
+   * being a reason to redraw.
+   */
+  const warningsRef = useRef(onWarnings);
+  warningsRef.current = onWarnings;
+
+  /*
+   * Depend on which layers are soloed, not on which array says so.
+   *
+   * Every workspace change replaces the whole workspace object, so `soloLayerIds` arrives as a
+   * fresh array with identical contents — and a referential dependency treated that as new
+   * work. Switching tool, moving a panel divider or toggling an overlay each re-read the
+   * project history and every asset from IndexedDB, reallocated a full-size canvas and
+   * replayed every stroke, to draw exactly the pixels already on screen.
+   */
+  const soloKey = soloLayerIds?.join(",") ?? "";
+  const soloRef = useRef(soloLayerIds);
+  soloRef.current = soloLayerIds;
+
   const [status, setStatus] = useState<"idle" | "rendering" | "failed">("idle");
   const [rendered, setRendered] = useState<{ widthPx: number; heightPx: number } | null>(null);
   const scale = QUALITY_SCALE[quality];
@@ -59,7 +85,7 @@ export function LayerCanvas({
 
     void (async () => {
       try {
-        const result = await renderService.render({ projectId, soloLayerIds, isolateGroupId, scale });
+        const result = await renderService.render({ projectId, soloLayerIds: soloRef.current, isolateGroupId, scale });
         if (cancelled) return;
         const host = hostRef.current;
         if (!host) return;
@@ -72,7 +98,7 @@ export function LayerCanvas({
 
         if (comparing) {
           const baseline = await renderService.render({
-            projectId, soloLayerIds, isolateGroupId, scale, revisionId: comparison!.baselineRevisionId,
+            projectId, soloLayerIds: soloRef.current, isolateGroupId, scale, revisionId: comparison!.baselineRevisionId,
           });
           if (cancelled) return;
           const target = baselineRef.current;
@@ -89,7 +115,7 @@ export function LayerCanvas({
 
         setRendered({ widthPx: result.widthPx, heightPx: result.heightPx });
         setStatus("idle");
-        onWarnings?.(result.warnings);
+        warningsRef.current?.(result.warnings);
       } catch {
         if (!cancelled) setStatus("failed");
       }
@@ -97,7 +123,7 @@ export function LayerCanvas({
 
     return () => { cancelled = true; };
     // revisionKey already encodes the viewing modes, so they are not separate dependencies.
-  }, [projectId, renderService, revisionKey, soloLayerIds, isolateGroupId, comparing, comparison?.baselineRevisionId, scale, onWarnings]);
+  }, [projectId, renderService, revisionKey, soloKey, isolateGroupId, comparing, comparison?.baselineRevisionId, scale]);
 
   const splitPercent = Math.round((comparison?.splitPosition ?? 0.5) * 100);
 

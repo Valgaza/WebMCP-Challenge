@@ -4,6 +4,7 @@ import {
   ImagePlus, LayoutGrid, Link2, List, Music, Repeat, Scissors, Search, SlidersHorizontal,
   Sparkles, Trash2, Upload, X,
 } from "lucide-react";
+import { readDroppedFiles } from "../media/drop-transfer";
 import type { AssetRecord, AssetSearch, ParsedAssetSearch } from "../domain/asset";
 import {
   MEDIA_FILE_EXTENSIONS, describeDurability, hasProxy,
@@ -215,18 +216,8 @@ export function MediaLibraryPanel({
   async function onDrop(event: DragEvent<HTMLDivElement>) {
     event.preventDefault();
     setDragging(false);
-    const items = [...event.dataTransfer.items].filter((item) => item.kind === "file");
-    const handles: FileSystemFileHandle[] = [];
-    const files: File[] = [];
-    for (const item of items) {
-      const maybeHandle = await (item as DataTransferItem & { getAsFileSystemHandle?: () => Promise<FileSystemHandle | null> })
-        .getAsFileSystemHandle?.().catch(() => null);
-      const file = item.getAsFile();
-      if (!file) continue;
-      files.push(file);
-      if (maybeHandle && maybeHandle.kind === "file") handles.push(maybeHandle as FileSystemFileHandle);
-    }
-    await importFiles(files, handles.length === files.length ? handles : []);
+    const { files, handles } = await readDroppedFiles(event.dataTransfer.items);
+    await importFiles(files, handles);
   }
 
   async function relink(assetId: string) {
