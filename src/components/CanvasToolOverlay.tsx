@@ -21,6 +21,8 @@ export type CanvasTool = "marquee_rectangle" | "marquee_ellipse" | "lasso" | "wa
 
 export interface DocumentPoint { x: number; y: number }
 
+import type { BrushKind } from "../domain/brush";
+
 interface CanvasToolOverlayProps {
   tool: CanvasTool;
   documentWidthPx: number;
@@ -32,17 +34,27 @@ interface CanvasToolOverlayProps {
   /** The traced edge of the live selection, drawn as marching ants. */
   outline: SelectionOutline | null;
   brushSizePx: number;
+  /**
+   * The colour and kind the stroke will actually be.
+   *
+   * The preview drew itself in hardcoded white regardless, so painting in any other colour
+   * showed a white ghost that then turned into the real stroke on release — and on a pale
+   * photograph the ghost was invisible, which is why the stroke looked like it only appeared
+   * once the drag was over.
+   */
+  brushColour: string;
+  brushKind: BrushKind;
   /** Called once, on release, with the whole gesture in document coordinates. */
   onGesture: (gesture:
     | { kind: "marquee"; shape: "rectangle" | "ellipse"; x: number; y: number; width: number; height: number }
     | { kind: "lasso"; points: DocumentPoint[] }
     | { kind: "wand"; x: number; y: number }
     | { kind: "stroke"; points: DocumentPoint[] }
-  ) => void;
+  ) => void | Promise<void>;
 }
 
 export function CanvasToolOverlay({
-  tool, documentWidthPx, documentHeightPx, zoom, rotationDeg, panX, panY,
+  tool, documentWidthPx, documentHeightPx, zoom, rotationDeg, panX, panY, brushColour, brushKind,
   outline, brushSizePx, onGesture,
 }: CanvasToolOverlayProps) {
   const hostRef = useRef<HTMLDivElement>(null);
@@ -119,17 +131,25 @@ export function CanvasToolOverlay({
   function end(event: ReactPointerEvent<HTMLDivElement>) {
     const drag = dragRef.current;
     dragRef.current = null;
-    setPreview(null);
-    if (!drag) return;
+    if (!drag) { setPreview(null); return; }
     event.currentTarget.releasePointerCapture(event.pointerId);
 
     const last = drag.points[drag.points.length - 1];
-    if (tool === "wand") { onGesture({ kind: "wand", x: Math.round(drag.start.x), y: Math.round(drag.start.y) }); return; }
+    if (tool === "wand") { setPreview(null); onGesture({ kind: "wand", x: Math.round(drag.start.x), y: Math.round(drag.start.y) }); return; }
     if (tool === "brush") {
-      if (drag.points.length < 2) return;
-      onGesture({ kind: "stroke", points: drag.points });
+      if (drag.points.length < 2) { setPreview(null); return; }
+      /*
+       * The preview stays up until the committed stroke exists.
+       *
+       * It used to be cleared on the line above, synchronously, while the commit is a whole
+       * revision away — a write to IndexedDB, a new head revision, then a full re-composite.
+       * So the stroke belonged to neither surface for as long as that took, and it read as a
+       * stroke that only appeared once you let go.
+       */
+      void Promise.resolve(onGesture({ kind: "stroke", points: drag.points })).finally(() => setPreview(null));
       return;
     }
+    setPreview(null);
     if (tool === "lasso") {
       if (drag.points.length < 3) return;
       onGesture({ kind: "lasso", points: drag.points });
@@ -159,11 +179,16 @@ export function CanvasToolOverlay({
         <path
           d={path + (tool === "lasso" ? " Z" : "")}
           fill="none"
-          stroke={tool === "brush" ? "rgba(255,255,255,0.9)" : "#ffffff"}
+          stroke={tool === "brush" ? (brushKind === "eraser" ? "rgba(255, 255, 255, 0.5)" : brushColour) : "#ffffff"}
+          strokeOpacity={tool === "brush" && brushKind !== "eraser" ? 0.85 : 1}
           strokeWidth={tool === "brush" ? brushSizePx : 1 / zoom}
           strokeLinecap="round"
           strokeLinejoin="round"
-          strokeDasharray={tool === "lasso" ? `${4 / zoom} ${4 / zoom}` : undefined}
+          strokeDasharray={
+            tool === "brush" && brushKind === "eraser" ? `${8 / zoom} ${5 / zoom}`
+            : tool === "lasso" ? `${4 / zoom} ${4 / zoom}`
+            : undefined
+          }
         />
       );
     }

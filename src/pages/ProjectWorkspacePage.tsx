@@ -1295,7 +1295,9 @@ export function ProjectWorkspace({ service = projectService, workspaceApi = defa
                   panY={currentWorkspace.viewport.panY}
                   outline={selectionOutline}
                   brushSizePx={brushSizePx}
-                  onGesture={(gesture) => void handleCanvasGesture(gesture)}
+                  brushColour={brushColour}
+                  brushKind={brushKind}
+                  onGesture={(gesture) => handleCanvasGesture(gesture)}
                 />
               ) : null}
 
