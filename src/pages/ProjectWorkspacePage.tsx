@@ -1183,6 +1183,15 @@ export function ProjectWorkspace({ service = projectService, workspaceApi = defa
             />
             <IconButton
               label="Guides" icon={FlipHorizontal2} shortcut=";"
+              /*
+               * A toggle with nothing to toggle says so.
+               *
+               * Guides only exist once you place them, so on a fresh document this button
+               * turned on and drew nothing — indistinguishable from a broken control.
+               */
+              unavailableReason={currentWorkspace.guides.length === 0
+                ? "No guides placed yet. Add them under Guides and snapping in the Inspector."
+                : undefined}
               pressed={currentWorkspace.overlays.guides}
               onClick={() => runCommand("overlay.guides")}
             />

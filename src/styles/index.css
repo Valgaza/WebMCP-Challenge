@@ -602,8 +602,20 @@ kbd {
 .document-canvas { position: absolute; z-index: 2; inset-block-start: 50%; inset-inline-start: 50%; display: block; min-width: 1px; min-height: 1px; padding: 0; border: 1px solid oklch(1 0 0 / 0.16); border-radius: 0; box-shadow: 0 18px 48px oklch(0 0 0 / 0.46); transform-origin: center; cursor: default; transition-property: box-shadow; transition-duration: var(--duration-fast); }
 .document-canvas[aria-pressed="true"] { box-shadow: 0 0 0 2px var(--accent), 0 18px 48px oklch(0 0 0 / 0.46); }
 .document-canvas--transparent { background-color: oklch(0.78 0 0); background-image: linear-gradient(45deg, oklch(0.66 0 0) 25%, transparent 25%, transparent 75%, oklch(0.66 0 0) 75%), linear-gradient(45deg, oklch(0.66 0 0) 25%, transparent 25%, transparent 75%, oklch(0.66 0 0) 75%); background-position: 0 0, 16px 16px; background-size: 32px 32px; }
-.document-grid { position: absolute; inset: 0; background-image: linear-gradient(to right, color-mix(in oklch, var(--accent) 24%, transparent) 1px, transparent 1px), linear-gradient(to bottom, color-mix(in oklch, var(--accent) 24%, transparent) 1px, transparent 1px); pointer-events: none; }
-.document-safe-area { position: absolute; border: 2px dashed color-mix(in oklch, var(--warning) 72%, transparent); pointer-events: none; }
+/*
+ * Overlays sit above the picture, which is the only place an overlay can do its job.
+ *
+ * The grid and the safe-area frame are written into the markup before the canvas that draws
+ * the document, and all three sat at `z-index: auto` — so painting order followed document
+ * order and the composited picture covered both of them completely. Their buttons toggled,
+ * their elements appeared in the DOM at the right size with the right colours, and nothing
+ * changed on screen. The guide line already carried a `z-index` and so was the one overlay
+ * that worked, which is why this looked like two broken buttons rather than one layering bug.
+ *
+ * They stay `pointer-events: none`, so the layer underneath is still what a click selects.
+ */
+.document-grid { position: absolute; z-index: 2; inset: 0; background-image: linear-gradient(to right, color-mix(in oklch, var(--accent) 55%, transparent) 1px, transparent 1px), linear-gradient(to bottom, color-mix(in oklch, var(--accent) 55%, transparent) 1px, transparent 1px), linear-gradient(to right, oklch(0 0 0 / 0.28) 1px, transparent 1px), linear-gradient(to bottom, oklch(0 0 0 / 0.28) 1px, transparent 1px); background-position: 0 0, 0 0, 1px 1px, 1px 1px; pointer-events: none; }
+.document-safe-area { position: absolute; z-index: 2; border: 2px dashed color-mix(in oklch, var(--warning) 72%, transparent); pointer-events: none; }
 .document-guide { position: absolute; z-index: 2; background: var(--accent-hover); box-shadow: 0 0 0 1px color-mix(in oklch, var(--app-bg) 70%, transparent); pointer-events: none; }
 .document-guide--x { inset-block: 0; width: 1px; }
 .document-guide--y { inset-inline: 0; height: 1px; }
