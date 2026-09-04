@@ -22,7 +22,7 @@ import type { RecoverableProjectSummary } from "../domain/project-persistence";
 import { ProjectError } from "../domain/project-error";
 import { projectService as defaultProjectService } from "../app/services";
 import { getWebMcpAvailability } from "../webmcp/model-context";
-import { buildSampleProject } from "../application/sample-project";
+import { buildSampleProject, sampleById, DEFAULT_SAMPLE_ID, SAMPLE_PROJECTS } from "../application/sample-project";
 import { assetService, layerService, projectService } from "../app/services";
 
 type ProjectFilter = "all" | "recent" | "recoverable";
@@ -177,7 +177,7 @@ export function ProjectHub({ service = defaultProjectService }: ProjectHubProps)
   }, [projects]);
 
   /**
-   * Whether the header owns "Load the sample project" and "New project".
+   * Whether the header owns "Load sample" and "New project".
    *
    * It does whenever there is a list, and does not when the empty state is showing its own
    * pair — otherwise the same two actions appear twice on one screen. While the list is still
@@ -185,13 +185,13 @@ export function ProjectHub({ service = defaultProjectService }: ProjectHubProps)
    */
   const showHeaderActions = loading || visibleProjects.length > 0 || query.trim().length > 0;
 
-  async function loadSample() {
+  async function loadSample(sampleId: string = DEFAULT_SAMPLE_ID) {
     setSampleBusy(true);
-    setStatus("Building the sample project…");
+    setStatus(`Building “${sampleById(sampleId).title}”…`);
     try {
       const result = await buildSampleProject({
         projects: projectService, assets: assetService, layers: layerService,
-      });
+      }, sampleId);
       setStatus(result.warnings.length ? `${result.summary} ${result.warnings.join(" ")}` : result.summary);
       await loadProjects();
       // Both are in the list; the photo one opens because it shows something immediately.
@@ -373,6 +373,35 @@ export function ProjectHub({ service = defaultProjectService }: ProjectHubProps)
         </div>
 
         {/*
+          * Four samples, and the reason for each.
+          *
+          * One sample taught one lesson: a green hillside is a poor thing to practise white
+          * balance on, and nothing at all to practise contrast on. Anyone arriving without
+          * their own photographs can now pick the picture that has the problem they want to
+          * learn to fix, which is the difference between a demo and something to try.
+          */}
+        <div>
+          <p className="eyebrow">Samples</p>
+          <nav aria-label="Sample projects" className="sample-list">
+            {SAMPLE_PROJECTS.map((sample) => (
+              <button
+                key={sample.id}
+                className="sample-item"
+                type="button"
+                disabled={sampleBusy}
+                onClick={() => void loadSample(sample.id)}
+              >
+                <img src={`${import.meta.env.BASE_URL}sample/${sample.fileName}`} alt="" loading="lazy" />
+                <span>
+                  <strong>{sample.title}</strong>
+                  <small>{sample.blurb}</small>
+                </span>
+              </button>
+            ))}
+          </nav>
+        </div>
+
+        {/*
           * "This browser" is the one name for where projects live.
           *
           * It used to be four names on one screen: the rail said "Local browser", each row
@@ -503,7 +532,7 @@ export function ProjectHub({ service = defaultProjectService }: ProjectHubProps)
             <p>
               {query
                 ? "Clear the search to see every local project."
-                : "Load the sample to get a photo document, three pictures, and a timeline you can edit straight away — by hand or by asking an agent. Everything stays in this browser."}
+                : "Pick a sample from the library on the left to get a photograph placed in a document you can edit straight away — by hand or by asking an agent. Everything stays in this browser."}
             </p>
             {query ? (
               <button className="button button--secondary" type="button" onClick={() => setQuery("")}>
@@ -512,7 +541,7 @@ export function ProjectHub({ service = defaultProjectService }: ProjectHubProps)
             ) : (
               <div className="empty-state__actions">
                 <button className="button button--primary" type="button" disabled={sampleBusy} onClick={() => void loadSample()}>
-                  <Wand2 aria-hidden="true" size={16} /> {sampleBusy ? "Loading the sample…" : "Load the sample project"}
+                  <Wand2 aria-hidden="true" size={16} /> {sampleBusy ? "Loading the sample…" : "Load a sample project"}
                 </button>
                 <button className="button button--secondary" type="button" onClick={() => setNameDialog({ mode: "create" })}>
                   <Plus aria-hidden="true" size={16} /> New project

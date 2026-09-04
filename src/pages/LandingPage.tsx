@@ -75,7 +75,7 @@ export function LandingPage() {
             <button className="button button--primary button--large" type="button" disabled={busy} onClick={() => void loadSample()}>
               <Wand2 aria-hidden="true" size={17} />
               {/* One label for this action across the whole product; the hub says the same. */}
-              {busy ? "Loading the sample…" : "Load the sample project"}
+              {busy ? "Loading the sample…" : "Load a sample project"}
             </button>
             <Link className="button button--secondary button--large" to="/projects">
               {projectCount ? `Your ${projectCount} project${projectCount === 1 ? "" : "s"}` : "Start from scratch"}

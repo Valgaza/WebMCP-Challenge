@@ -46,8 +46,55 @@ const DOCUMENT_HEIGHT_PX = 1000;
 /** Named so the hub can offer to open the existing one instead of making a second. */
 export const SAMPLE_PROJECT_NAME = "Estro sample";
 
-/** The place in the photograph, used for the layer, the title over it, and the file name. */
-const SAMPLE_IMAGE_NAME = "Sindhudurg";
+export interface SampleDefinition {
+  id: string;
+  /** Becomes the project's name, the image layer's name, and the title drawn over it. */
+  title: string;
+  fileName: string;
+  /** What this photograph is good for practising on. Shown beside it in the library. */
+  blurb: string;
+}
+
+/**
+ * Four photographs, chosen for what they are difficult about.
+ *
+ * One sample taught one lesson. A person learning what "temperature" means needs a picture
+ * with a colour cast to correct; a person learning "contrast" needs a flat one. A single
+ * green hillside answers neither question well, and a drawn gradient answers none of them,
+ * because none of the adjustments behave on invented light the way they behave on real light.
+ */
+export const SAMPLE_PROJECTS: readonly SampleDefinition[] = [
+  {
+    id: "sindhudurg",
+    title: "Sindhudurg",
+    fileName: "sindhudurg.jpg",
+    blurb: "Greens and a blue sky. Good for saturation and for seeing what temperature does.",
+  },
+  {
+    id: "city",
+    title: "City afternoon",
+    fileName: "city.jpg",
+    blurb: "A blue cast over a busy street. The one to practise white balance on.",
+  },
+  {
+    id: "deer",
+    title: "Deer at dawn",
+    fileName: "deer.jpg",
+    blurb: "Mist, low contrast, almost no colour. Good for exposure and for shadows.",
+  },
+  {
+    id: "quarry",
+    title: "Quarry harbour",
+    fileName: "quarry.jpg",
+    blurb: "Flat grey overcast with fine detail. Good for contrast and for sharpening.",
+  },
+] as const;
+
+export const DEFAULT_SAMPLE_ID = SAMPLE_PROJECTS[0].id;
+
+export function sampleById(id: string | undefined): SampleDefinition {
+  return SAMPLE_PROJECTS.find((entry) => entry.id === id) ?? SAMPLE_PROJECTS[0];
+}
 
 /**
  * Fetches the sample photograph, or gives up quietly.
@@ -56,28 +103,29 @@ const SAMPLE_IMAGE_NAME = "Sindhudurg";
  * and a failure returns null rather than throwing, so the caller can fall back to the drawn
  * scene instead of leaving a person with no sample at all.
  */
-async function loadSamplePhotograph(): Promise<File | null> {
+async function loadSamplePhotograph(sample: SampleDefinition): Promise<File | null> {
   try {
-    const response = await fetch(`${import.meta.env.BASE_URL}sample/sindhudurg.jpg`);
+    const response = await fetch(`${import.meta.env.BASE_URL}sample/${sample.fileName}`);
     if (!response.ok) return null;
     const blob = await response.blob();
     if (blob.size === 0) return null;
-    return new File([blob], "sindhudurg.jpg", { type: "image/jpeg" });
+    return new File([blob], sample.fileName, { type: "image/jpeg" });
   } catch {
     return null;
   }
 }
 
-export async function buildSampleProject(deps: SampleProjectDeps): Promise<SampleProjectResult> {
+export async function buildSampleProject(deps: SampleProjectDeps, sampleId?: string): Promise<SampleProjectResult> {
+  const sample = sampleById(sampleId);
   try {
     if (typeof document === "undefined") {
       throw new ProjectError("CAPABILITY_UNAVAILABLE", "The sample project needs a browser to draw its pictures.");
     }
     const warnings: string[] = [];
-    const project = await deps.projects.createProject({ name: await uniqueName(deps.projects), kind: "photo" });
+    const project = await deps.projects.createProject({ name: await uniqueName(deps.projects, sample.title), kind: "photo" });
 
-    const photograph = await loadSamplePhotograph();
-    if (!photograph) warnings.push("The sample photograph could not be loaded, so a drawn scene was used instead.");
+    const photograph = await loadSamplePhotograph(sample);
+    if (!photograph) warnings.push(`The photograph for “${sample.title}” could not be loaded, so a drawn scene was used instead.`);
     const files = [photograph ?? await renderScene("estro-sample-scene.png", 1)];
 
     const assetIds: string[] = [];
@@ -101,11 +149,11 @@ export async function buildSampleProject(deps: SampleProjectDeps): Promise<Sampl
     const documentId = created.headRevision.state.photoDocument?.id ?? null;
 
     await deps.layers.applyOperation(project.id, {
-      operation: "add_image", assetId: assetIds[0], fit: "fill", name: SAMPLE_IMAGE_NAME,
+      operation: "add_image", assetId: assetIds[0], fit: "fill", name: sample.title,
     });
     await deps.layers.applyOperation(project.id, {
       operation: "add_text",
-      content: SAMPLE_IMAGE_NAME,
+      content: sample.title,
       name: "Title",
       // Left to the service, which centres it and picks ink that reads on this background.
     });
@@ -118,7 +166,7 @@ export async function buildSampleProject(deps: SampleProjectDeps): Promise<Sampl
       documentId,
       assetIds,
       warnings,
-      summary: `Built “${project.name}”: a photograph of ${SAMPLE_IMAGE_NAME}, placed in an image document with a title over it. Everything in it is an ordinary edit you can change or undo.`,
+      summary: `Built “${project.name}”: a photograph placed in an image document with a title over it. Everything in it is an ordinary edit you can change or undo.`,
     };
   } catch (error) { throw toProjectError(error); }
 }

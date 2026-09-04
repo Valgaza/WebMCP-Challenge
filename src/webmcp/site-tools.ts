@@ -64,7 +64,7 @@ import { workspaceChangeSchema } from "../domain/workspace";
 import { editorCommands, searchEditorCommands } from "../editor/editor-commands";
 import { getSemanticTarget, semanticTargets, type SemanticTargetId } from "../editor/semantic-targets";
 import { webMcpActivityStore } from "./activity-store";
-import { buildSampleProject } from "../application/sample-project";
+import { buildSampleProject, SAMPLE_PROJECTS } from "../application/sample-project";
 import { explainAdjustment, explainOperation, meaningOf } from "../domain/plain-english";
 import { planRelink } from "../domain/relink";
 import {
@@ -100,7 +100,7 @@ const inspectProjectSchema = z.object({ projectId: z.string().min(1), historyLim
 const expectedRevision = { expectedRevisionId: z.string().min(1).optional() };
 const manageProjectSchema = z.discriminatedUnion("operation", [
   z.object({ operation: z.literal("create"), name: z.string().trim().min(1, "Enter a project name.").max(120, "Use a project name with 120 characters or fewer.") }),
-  z.object({ operation: z.literal("create_sample") }),
+  z.object({ operation: z.literal("create_sample"), sample: z.string().optional() }),
   z.object({ operation: z.literal("rename"), projectId: z.string().min(1), name: z.string().trim().min(1, "Enter a project name.").max(120, "Use a project name with 120 characters or fewer."), ...expectedRevision }),
   z.object({ operation: z.literal("duplicate"), projectId: z.string().min(1), ...expectedRevision }),
   z.object({ operation: z.literal("save"), projectId: z.string().min(1), ...expectedRevision }),
@@ -707,9 +707,10 @@ export function createEstroSiteTools(services: EstroToolServices): ModelContextT
     },
     {
       name: "manage_project",
-      description: "Create, rename, duplicate, save, Save As, snapshot, or request deletion of a local Estro project. Deletion always pauses for visible user confirmation. Use create_sample when the user has no media of their own: a browser cannot open a file without a user gesture, so create_sample draws three pictures and builds two projects from them: a photo project with an image document, and a video project with a four-clip sequence. It returns both ids, so you have something real to edit in one call.",
+      description: "Create, rename, duplicate, save, Save As, snapshot, or request deletion of a local Estro project. Deletion always pauses for visible user confirmation. Use create_sample when the user has no media of their own: a browser cannot open a file without a user gesture, so create_sample builds a photo project from a bundled photograph and returns its ids, giving you something real to edit in one call. Pass `sample` to choose which photograph; omit it for the first. Each was picked for a different problem, so choose the one whose difficulty matches what the user wants to learn to change.",
       inputSchema: jsonSchema({
         operation: { enum: ["create", "create_sample", "rename", "duplicate", "save", "save_as", "snapshot", "request_delete"] },
+        sample: { type: "string", enum: SAMPLE_PROJECTS.map((entry) => entry.id), description: SAMPLE_PROJECTS.map((entry) => `${entry.id} — ${entry.blurb}`).join(" ") },
         projectId: { type: "string" }, name: { type: "string", minLength: 1, maxLength: 120 },
         expectedRevisionId: { type: "string", minLength: 1, description: "Refuse the command if the project has moved past this revision. Accepted by every operation except create." },
       }, ["operation"]),
@@ -742,7 +743,7 @@ export function createEstroSiteTools(services: EstroToolServices): ModelContextT
             const sample = await buildSampleProject({
               projects: service as never, assets: assetService as never,
               layers: layerService as never,
-            });
+            }, parsed.sample);
             const project = await service.getProject(sample.projectId);
             payload = {
               ...(await resultForProjectCreation(service, project, sample.summary)),
