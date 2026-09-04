@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { Download, MessageSquare, Package, Share2, Check } from "lucide-react";
+import { SectionEmpty } from "./ui/SectionEmpty";
 import type { PackageService } from "../application/package-service";
 import type { ReviewService } from "../application/review-service";
 import { count } from "../domain/plural";
@@ -225,10 +226,9 @@ export function SharingPanel({
       </div>
 
       {comments.length === 0 ? (
-        <p className="field-help">
-          Nothing outstanding. A note records the version it was written about, so one left on
-          an older version says so rather than looking like it was about this one.
-        </p>
+        <SectionEmpty title="Nothing outstanding.">
+          A note records the version it was written about.
+        </SectionEmpty>
       ) : (
         <ul className="effect-list">
           {comments.map((comment) => (

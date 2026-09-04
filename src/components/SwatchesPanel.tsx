@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
+import { SectionEmpty } from "./ui/SectionEmpty";
 import type { Paint } from "../domain/vector";
 
 /**
@@ -111,10 +112,9 @@ export function SwatchesPanel({
       </div>
 
       {swatches.length === 0 ? (
-        <p className="field-help">
-          Nothing saved yet. A saved colour is shared: change it here and every shape pointing at
-          it changes with it, in one step rather than forty.
-        </p>
+        <SectionEmpty title="Nothing saved yet.">
+          Save a colour to reuse it across shapes.
+        </SectionEmpty>
       ) : (
         <ul className="effect-list">
           {swatches.map((swatch) => (

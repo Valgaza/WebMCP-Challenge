@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { BookmarkPlus, Check } from "lucide-react";
+import { SectionEmpty } from "./ui/SectionEmpty";
 import type { PresetService } from "../application/preset-service";
 import type { PresetRecord } from "../domain/preset";
 import { describeBundle } from "../domain/preset";
@@ -114,10 +115,9 @@ export function PresetsPanel({
       </div>
 
       {presets.length === 0 ? (
-        <p className="field-help">
-          No presets yet. Saving one reads the colour, opacity and crop off the selected layer
-          so it can be put on any number of others in a single step.
-        </p>
+        <SectionEmpty title="No presets yet.">
+          Saving one reads the colour, opacity and crop off the selected layer.
+        </SectionEmpty>
       ) : (
         <ul className="effect-list">
           {presets.map((preset) => (

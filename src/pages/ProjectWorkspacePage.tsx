@@ -1460,7 +1460,7 @@ export function ProjectWorkspace({ service = projectService, workspaceApi = defa
             ) : null}
 
             {documentState && projectId ? (
-              <InspectorSection id="paint" title="Select and paint" open={isSectionOpen("paint")} onToggle={(next) => toggleSection("paint", next)}>
+              <InspectorSection id="paint" title="Select and paint" explain="Strokes are kept as strokes rather than as pixels, so one can be resized or recoloured long after it was drawn — which is what “restyle” means here, and why it is not the same as undoing and painting again." open={isSectionOpen("paint")} onToggle={(next) => toggleSection("paint", next)}>
                 <PaintAndSelectPanel
                   tool={canvasTool}
                   brushKind={brushKind}
@@ -1515,7 +1515,7 @@ export function ProjectWorkspace({ service = projectService, workspaceApi = defa
             ) : null}
 
             {documentState && projectId ? (
-              <InspectorSection id="content" title="Text and shapes" dedupeHeading open={isSectionOpen("content")} onToggle={(next) => toggleSection("content", next)}>
+              <InspectorSection id="content" title="Text and shapes" explain="Text and shapes are stored as descriptions rather than as pixels, so they can be re-worded, resized or recoloured later and still draw sharply at export size." dedupeHeading open={isSectionOpen("content")} onToggle={(next) => toggleSection("content", next)}>
                 <ContentPanel
                   layer={selectedLayer}
                   disabled={Boolean(selectedLayer?.locked)}

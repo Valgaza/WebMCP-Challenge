@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { ChevronDown, ChevronUp, Eye, EyeOff, Plus, Trash2 } from "lucide-react";
+import { SectionEmpty } from "./ui/SectionEmpty";
 import type { Effect, EffectContainer } from "../domain/effect";
 import { describeColourOperation, type ColourOperation } from "../domain/colour-op";
 import { describeFilter, type FilterOperation } from "../domain/filter";
@@ -255,10 +256,9 @@ export function EffectStackPanel({
       ) : null}
 
       {effects.length === 0 ? (
-        <p className="field-help">
-          No effects yet. Everything added here is stored as settings and re-run when the
-          picture is drawn, so any of it can be changed or removed later.
-        </p>
+        <SectionEmpty title="No effects yet.">
+          Add one above; each is stored as a setting you can reorder or remove.
+        </SectionEmpty>
       ) : (
         <ul className="effect-list">
           {effects.map((effect, index) => {

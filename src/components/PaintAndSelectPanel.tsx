@@ -201,11 +201,6 @@ export function PaintAndSelectPanel({
         </div>
       ) : null}
 
-      <p className="field-help">
-        Strokes are kept as strokes rather than as pixels, so one can be resized or recoloured
-        long after it was drawn and it still redraws sharply at export size — which is what
-        “restyle” means here, and why it is not the same as undoing and painting again.
-      </p>
     </section>
   );
 }

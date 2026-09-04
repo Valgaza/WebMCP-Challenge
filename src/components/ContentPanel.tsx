@@ -82,10 +82,6 @@ export function ContentPanel({
             disabled={disabled}
             onChange={(event) => onEditText({ content: event.target.value })}
           />
-          <p className="field-help">
-            Stored as text rather than as pixels, so it can be re-worded or resized later and
-            still draw sharply at export size.
-          </p>
 
           <label className="slider-field">
             <span>Size</span>
@@ -158,10 +154,6 @@ export function ContentPanel({
               onChange={(event) => onSetFill(event.target.value)}
             />
           </label>
-          <p className="field-help">
-            Drawn from its description rather than from pixels, so it stays sharp at any size.
-            Save a colour under Saved colours to fill this with a shared one.
-          </p>
         </>
       ) : null}
 
@@ -199,10 +191,6 @@ export function ContentPanel({
           void file.text().then((source) => onImportSvg(source, file.name));
         }}
       />
-      <p className="field-help">
-        Shapes come in as editable objects rather than as a picture of themselves, and anything
-        in the file that Estro cannot draw is named rather than dropped in silence.
-      </p>
     </section>
   );
 }

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { Eye, EyeOff, RotateCcw, Save, Trash2, Upload } from "lucide-react";
+import { SectionEmpty } from "./ui/SectionEmpty";
 import type { ChannelService } from "../application/channel-service";
 import type { SelectionService } from "../application/selection-service";
 import type { ChannelSummary, ChannelView, ColourChannel } from "../domain/channel";
@@ -173,10 +174,9 @@ export function ChannelsPanel({
       </div>
 
       {alphas.length === 0 ? (
-        <p className="field-help">
-          A saved channel is a selection kept for later — select the sky once, save it, and every
-          later change to the sky starts from it rather than from another careful drag.
-        </p>
+        <SectionEmpty title="No saved channels yet.">
+          Make a selection on the canvas, then save it here to reuse later.
+        </SectionEmpty>
       ) : (
         <ul className="effect-list">
           {alphas.map((row) => (
