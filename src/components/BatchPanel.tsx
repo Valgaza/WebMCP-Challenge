@@ -142,10 +142,6 @@ export function BatchPanel({
     >
       <h3>Many at once</h3>
 
-      <p className="field-help">
-        Pick the photographs, then either match them to this one or export the lot.
-      </p>
-
       <ul className="check-list">
         {projects.map((project) => (
           <li key={project.id}>

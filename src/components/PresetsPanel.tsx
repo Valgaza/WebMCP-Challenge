@@ -140,9 +140,6 @@ export function PresetsPanel({
           ))}
         </ul>
       )}
-      <p className="field-help">
-        Applying to several layers is one transaction, so one Undo puts every one of them back.
-      </p>
     </section>
   );
 }

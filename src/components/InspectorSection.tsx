@@ -1,5 +1,6 @@
 import { ChevronRight } from "lucide-react";
 import type { ReactNode } from "react";
+import { FieldHelp } from "./ui/FieldHelp";
 
 interface InspectorSectionProps {
   /** Stable id. Used for `aria-controls` and to reopen a group when focus is requested inside it. */
@@ -14,6 +15,14 @@ interface InspectorSectionProps {
   dedupeHeading?: boolean;
   open: boolean;
   onToggle: (open: boolean) => void;
+  /**
+   * What this group is, for someone who does not know the word in its title.
+   *
+   * Several panels opened with a paragraph defining themselves — what a mask is, what a layer
+   * style is, what a preset does — which every reader who already knew had to scroll past
+   * every time. The definition belongs to the group's name, so it lives on the name.
+   */
+  explain?: ReactNode;
   children: ReactNode;
 }
 
@@ -38,7 +47,7 @@ interface InspectorSectionProps {
  * facts are. That is the difference between the Inspector answering the question you have and
  * making you find where the answer lives.
  */
-export function InspectorSection({ id, title, dedupeHeading, open, onToggle, children }: InspectorSectionProps) {
+export function InspectorSection({ id, title, dedupeHeading, open, onToggle, explain, children }: InspectorSectionProps) {
   const bodyId = `${id}-body`;
 
   return (
@@ -59,6 +68,7 @@ export function InspectorSection({ id, title, dedupeHeading, open, onToggle, chi
           <ChevronRight className="inspector-section__chevron" aria-hidden="true" size={14} />
           <span className="inspector-section__title">{title}</span>
         </button>
+        {explain ? <FieldHelp subject={title}>{explain}</FieldHelp> : null}
       </h3>
       <div id={bodyId} className="inspector-section__body">
         {children}

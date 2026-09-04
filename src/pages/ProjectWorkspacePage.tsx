@@ -1252,7 +1252,20 @@ export function ProjectWorkspace({ service = projectService, workspaceApi = defa
                   quality={currentWorkspace.previewQuality}
                   comparison={comparison}
                   displayFilter={channelFilterCss(channelView)}
-                  onWarnings={(warnings) => { if (warnings.length) setStatus(warnings[0]); }}
+                  onWarnings={(warnings) => {
+                    /*
+                     * A picture that will not draw is an error, not a status.
+                     *
+                     * Every render warning went to the shared status line — the same quiet,
+                     * transient place that reports "Hand tool active." So "Add to canvas" put
+                     * a layer in the panel, left the canvas empty, and said so in a sentence
+                     * that had already gone by the time anyone looked. A layer that cannot be
+                     * drawn gets the error banner; the rest still pass through as status.
+                     */
+                    if (!warnings.length) return;
+                    const undrawable = warnings.find((warning) => /could not be drawn|could not be read/.test(warning));
+                    if (undrawable) setError(undrawable); else setStatus(warnings[0]);
+                  }}
                 />
                 <ChannelFilterDefs view={channelView} />
                 </>
@@ -1525,7 +1538,7 @@ export function ProjectWorkspace({ service = projectService, workspaceApi = defa
             ) : null}
 
             {selectedLayer && selectedLayer.kind !== "group" && projectId ? (
-              <InspectorSection id="masks" title="Masks" dedupeHeading open={isSectionOpen("masks")} onToggle={(next) => toggleSection("masks", next)}>
+              <InspectorSection id="masks" title="Masks" explain="A mask hides part of the layer without erasing it — remove the mask and the whole layer is back. “By tone” selects the dark parts, which is how you confine an adjustment to the shadows." dedupeHeading open={isSectionOpen("masks")} onToggle={(next) => toggleSection("masks", next)}>
                 <MasksPanel
                   masks={selectedLayer.masks}
                   disabled={selectedLayer.locked}
@@ -1538,7 +1551,7 @@ export function ProjectWorkspace({ service = projectService, workspaceApi = defa
             ) : null}
 
             {documentState && projectId ? (
-              <InspectorSection id="presets" title="Presets" dedupeHeading open={isSectionOpen("presets")} onToggle={(next) => toggleSection("presets", next)}>
+              <InspectorSection id="presets" title="Presets" explain="Applying a preset to several layers is one transaction, so one Undo puts every one of them back." dedupeHeading open={isSectionOpen("presets")} onToggle={(next) => toggleSection("presets", next)}>
                 <PresetsPanel
                   projectId={projectId}
                   presetService={defaultPresetService}
@@ -1554,7 +1567,7 @@ export function ProjectWorkspace({ service = projectService, workspaceApi = defa
             ) : null}
 
             {selectedImageLayer && projectId ? (
-              <InspectorSection id="corrections" title="Lens and perspective" dedupeHeading open={isSectionOpen("corrections")} onToggle={(next) => toggleSection("corrections", next)}>
+              <InspectorSection id="corrections" title="Lens and perspective" explain="Stored as settings and applied when the picture is drawn, so none of this touches the original file and all of it can be undone." dedupeHeading open={isSectionOpen("corrections")} onToggle={(next) => toggleSection("corrections", next)}>
                 <CorrectionsPanel
                   layer={selectedImageLayer}
                   disabled={selectedImageLayer.locked}
@@ -1569,7 +1582,7 @@ export function ProjectWorkspace({ service = projectService, workspaceApi = defa
             ) : null}
 
             {selectedLayer && selectedLayer.kind !== "group" && projectId ? (
-              <InspectorSection id="styles" title="Layer styles" dedupeHeading open={isSectionOpen("styles")} onToggle={(next) => toggleSection("styles", next)}>
+              <InspectorSection id="styles" title="Layer styles" explain="Drawn from the layer’s own shape, so they follow it as it moves or changes. An outline or a drop shadow is what makes a title readable over a photograph." dedupeHeading open={isSectionOpen("styles")} onToggle={(next) => toggleSection("styles", next)}>
                 <LayerStylesPanel
                   container={selectedLayer.styles}
                   disabled={selectedLayer.locked}
@@ -1602,7 +1615,7 @@ export function ProjectWorkspace({ service = projectService, workspaceApi = defa
               * rather than on the image-layer narrowing above it.
               */}
             {selectedLayer && selectedLayer.kind !== "group" && projectId ? (
-              <InspectorSection id="effects" title="Effects" dedupeHeading open={isSectionOpen("effects")} onToggle={(next) => toggleSection("effects", next)}>
+              <InspectorSection id="effects" title="Effects" explain="Effects are stored as settings and re-run each time the picture is drawn, so the original file is never touched and any of them can be reordered or removed." dedupeHeading open={isSectionOpen("effects")} onToggle={(next) => toggleSection("effects", next)}>
                 <EffectStackPanel
                   container={selectedLayer.effects}
                   disabled={selectedLayer.locked}
@@ -1627,7 +1640,7 @@ export function ProjectWorkspace({ service = projectService, workspaceApi = defa
             ) : null}
 
             {documentState && projectId ? (
-              <InspectorSection id="swatches" title="Saved colours" dedupeHeading open={isSectionOpen("swatches")} onToggle={(next) => toggleSection("swatches", next)}>
+              <InspectorSection id="swatches" title="Saved colours" explain="A saved colour is shared: change it here and every shape pointing at it changes with it." dedupeHeading open={isSectionOpen("swatches")} onToggle={(next) => toggleSection("swatches", next)}>
                 <SwatchesPanel
                   swatches={documentState.swatches ?? []}
                   disabled={false}
@@ -1649,7 +1662,7 @@ export function ProjectWorkspace({ service = projectService, workspaceApi = defa
             ) : null}
 
             {documentState && projectId ? (
-              <InspectorSection id="channels" title="Channels" dedupeHeading open={isSectionOpen("channels")} onToggle={(next) => toggleSection("channels", next)}>
+              <InspectorSection id="channels" title="Channels" explain="A saved channel is a selection kept for later — select the sky once, save it, and bring it back on any revision." dedupeHeading open={isSectionOpen("channels")} onToggle={(next) => toggleSection("channels", next)}>
                 <ChannelsPanel
                   projectId={projectId}
                   channelService={defaultChannelService}
@@ -1666,7 +1679,7 @@ export function ProjectWorkspace({ service = projectService, workspaceApi = defa
             ) : null}
 
             {projectId && project ? (
-              <InspectorSection id="batch" title="Many at once" dedupeHeading open={isSectionOpen("batch")} onToggle={(next) => toggleSection("batch", next)}>
+              <InspectorSection id="batch" title="Many at once" explain="Pick the photographs, then either match them to this one or export the lot." dedupeHeading open={isSectionOpen("batch")} onToggle={(next) => toggleSection("batch", next)}>
                 <BatchPanel
                   projectId={projectId}
                   projectName={project.name}
@@ -1731,7 +1744,7 @@ export function ProjectWorkspace({ service = projectService, workspaceApi = defa
               </InspectorSection>
             ) : null}
 
-            <InspectorSection id="guides" title="Guides and snapping" open={isSectionOpen("guides")} onToggle={(next) => toggleSection("guides", next)}>
+            <InspectorSection id="guides" title="Guides and snapping" explain="Guides are lines you place to line things up against; snapping makes a dragged layer stick to them." open={isSectionOpen("guides")} onToggle={(next) => toggleSection("guides", next)}>
               <section>
                 <div className="inspector-actions">
                   <button className="button button--secondary" type="button" disabled={!documentState} onClick={() => {

@@ -4,6 +4,7 @@ import { applyViewingModes, flattenLayers, resolveInheritance, type Layer } from
 import { computeHistogram, describeExposure, type Histogram } from "../render/histogram";
 import { readPixels, renderDocument, type RenderResult, type RenderSource } from "../render/composite";
 import { previewCacheKey } from "../data/derived-cache";
+import { count } from "../domain/plural";
 import type { MediaWorkerClient } from "../media/worker-client";
 import { createUnavailableWorkerClient } from "../media/worker-client";
 import type { HistogramTaskResult, ResampleAlgorithm, ResampleTaskResult } from "../workers/worker-protocol";
@@ -95,6 +96,7 @@ export class RenderService {
 
       const sources: RenderSource[] = [];
       const missing: string[] = [];
+      const missingReasons: string[] = [];
       for (const assetId of needed) {
         if (request.signal?.aborted || mine !== this.generation) break;
         // A resampled derivative means the algorithm the user chose has already been applied
@@ -106,12 +108,26 @@ export class RenderService {
               && entry.sourceRevision === record.reference.sourceRevision,
           ) ?? null)
           .catch(() => null);
+        /*
+         * Keep the reason, rather than only the fact.
+         *
+         * This was `.catch(() => null)`, so a layer that could not be drawn produced a count
+         * and nothing else — the canvas came back with only its background and the person was
+         * told "1 image source(s) could not be read", which does not say which one or why.
+         */
+        let reason: string | null = null;
         const source = await this.sourceFor(
           assetId,
           derivative ? { key: derivative.key, widthPx: 0, heightPx: 0 } : null,
-        ).catch(() => null);
+        ).catch((error: unknown) => {
+          reason = error instanceof Error ? error.message : String(error);
+          return null;
+        });
         if (source) sources.push(source);
-        else missing.push(assetId);
+        else {
+          missing.push(assetId);
+          if (reason) missingReasons.push(reason);
+        }
       }
 
       // Only fetched when a mask actually points at one, so an ordinary render never pays
@@ -129,7 +145,10 @@ export class RenderService {
       );
 
       if (missing.length) {
-        result.warnings.push(`${missing.length} image source(s) could not be read. Relink them to see the full result.`);
+        const [firstReason] = missingReasons;
+        result.warnings.push(firstReason
+          ? `${count(missing.length, "image")} could not be drawn. ${firstReason}`
+          : `${count(missing.length, "image")} could not be read. Relink to see the full result.`);
       }
 
       return { ...result, revisionId: revision.id, documentId: document.id };

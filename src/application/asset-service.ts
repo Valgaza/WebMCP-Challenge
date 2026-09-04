@@ -1314,22 +1314,42 @@ export class AssetService {
     return next;
   }
 
-  /** Returns the live File for an available asset, or a structured reason it cannot be read. */
+  /**
+   * Returns the live File for an available asset, or a structured reason it cannot be read.
+   *
+   * The handle is a freshness optimisation, never the only way back to the bytes.
+   *
+   * It used to be treated as the only way: if a handle existed at all, a failed `getFile()`
+   * threw straight out of here and the `opfs-copy` branch one line below was unreachable. A
+   * File System Access handle read back from IndexedDB reverts to `prompt` after any page
+   * load, so `getFile()` throws on the first reload after a picker or drag import — and
+   * `evaluateAvailability` had already been taught to fall through to the copy, so the record
+   * still said "available". The interface offered Add to canvas and Generate proxy, both went
+   * to read bytes, and both hit this line.
+   *
+   * That asymmetry produced two symptoms that looked unrelated: a picture that added itself as
+   * a layer but composited to nothing, and a proxy job that failed with "grant access and
+   * retry" for a file imported moments earlier. Same line, both times.
+   */
   async readAssetFile(assetId: string): Promise<File> {
     const record = await this.getAsset(assetId);
     const handle = await this.handles.get(assetId);
+
+    let handleError: ProjectError | null = null;
     if (handle) {
       try {
         return await handle.getFile();
       } catch (error) {
-        throw toProjectError(error);
+        handleError = toProjectError(error);
       }
     }
+
     if (record.locator.locatorType === "opfs-copy") {
       const copy = await this.originals.read(record.locator.sourceKey);
       if (copy) return new File([copy], record.locator.fileName, { type: record.reference.mediaType });
     }
-    throw new ProjectError(
+
+    throw handleError ?? new ProjectError(
       "ASSET_SOURCE_UNAVAILABLE",
       record.availabilityReason ?? "This asset's original file is not available. Relink it to continue.",
     );

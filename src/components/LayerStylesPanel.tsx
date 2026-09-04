@@ -1,4 +1,5 @@
 import { Plus, Trash2 } from "lucide-react";
+import { SectionEmpty } from "./ui/SectionEmpty";
 import { paintOrder, type LayerStyle, type LayerStyleStack } from "../domain/layer-style";
 
 /**
@@ -160,10 +161,9 @@ export function LayerStylesPanel({
       </div>
 
       {ordered.length === 0 ? (
-        <p className="field-help">
-          Drawn from the layer&rsquo;s own shape, so they follow it as it moves or changes. An
-          outline or a drop shadow is what makes a title readable over a photograph.
-        </p>
+        <SectionEmpty title="No styles on this layer yet.">
+          Add an outline or a shadow above.
+        </SectionEmpty>
       ) : (
         <ul className="effect-list">
           {ordered.map((style: LayerStyle) => (

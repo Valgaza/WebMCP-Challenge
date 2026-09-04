@@ -244,10 +244,6 @@ export function CorrectionsPanel({
         </>
       )}
 
-      <p className="field-help">
-        Stored as settings and applied when the picture is drawn, so none of this touches the
-        original file and all of it can be undone.
-      </p>
     </section>
   );
 }

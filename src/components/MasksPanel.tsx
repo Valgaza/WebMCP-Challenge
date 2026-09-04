@@ -1,4 +1,5 @@
 import { Circle, Contrast, Square, Trash2 } from "lucide-react";
+import { SectionEmpty } from "./ui/SectionEmpty";
 import type { Mask } from "../domain/effect";
 
 /**
@@ -77,11 +78,9 @@ export function MasksPanel({ masks, disabled, agentTarget, onAdd, onUpdate, onRe
       </div>
 
       {masks.length === 0 ? (
-        <p className="field-help">
-          A mask hides part of the layer without erasing it — remove the mask and the whole
-          layer is back. &ldquo;By tone&rdquo; selects the dark parts, which is how you confine
-          an adjustment to the shadows.
-        </p>
+        <SectionEmpty title="No masks on this layer yet.">
+          Add one above to hide part of it without erasing anything.
+        </SectionEmpty>
       ) : (
         <ul className="effect-list">
           {masks.map((mask) => (

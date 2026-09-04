@@ -148,7 +148,20 @@ describe("AssetService", () => {
     // Every import keeps a copy, so a revoked handle is an inconvenience rather than a loss.
     // Reporting this one offline would send a person to relink a file Estro can already read.
     expect(await assets.refreshAvailability(created.id)).toHaveLength(0);
-    expect((await assets.getAsset((await assets.listAssets(created.id))[0].id)).availability).toBe("available");
+    const stored = (await assets.listAssets(created.id))[0];
+    expect((await assets.getAsset(stored.id)).availability).toBe("available");
+
+    /*
+     * Saying "available" and being readable have to be the same thing.
+     *
+     * This test used to stop at the line above, and the two came apart underneath it:
+     * `evaluateAvailability` fell through to the durable copy while `readAssetFile` threw as
+     * soon as a handle existed and failed. So the record read "available", the interface
+     * offered Add to canvas and Generate proxy, and both went to read bytes and both failed —
+     * a picture that composited to nothing, and a proxy job asking for permission to a file
+     * already sitting in this browser's own storage.
+     */
+    await expect(assets.readAssetFile(stored.id)).resolves.toBeInstanceOf(File);
   });
 
   it("separates a permission problem from a missing file when there is no copy to fall back on", async () => {
