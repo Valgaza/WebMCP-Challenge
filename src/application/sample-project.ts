@@ -12,15 +12,18 @@ import { ProjectError, toProjectError } from "../domain/project-error";
  * product could not be demonstrated at all. Anyone arriving without their own photographs
  * had nothing to look at and nothing to ask an agent to change.
  *
- * The picture is drawn here rather than shipped as a file. That keeps the bundle the size it
- * was, avoids attributing or licensing a photograph, and means the sample cannot arrive
- * broken. It goes in through `registerOne` — the same import path a person's own file takes,
- * validated, stored durably, read back, and probed — so the sample exercises the real code
- * rather than a shortcut around it.
+ * The picture is a photograph now, served from `public/sample/`. It used to be drawn here in
+ * a canvas, which kept the bundle small and meant the sample could not arrive broken — but a
+ * drawn gradient is a poor thing to learn white balance on, because none of the adjustments
+ * behave the way they behave on real light.
  *
- * Three frames of one scene rather than one, so the colour controls have something to be
- * visibly right or wrong about: the same hills at three times of day react differently to a
- * temperature change, which is the point a person is trying to learn.
+ * The drawing is still here as a fallback. If the photograph cannot be fetched — offline on
+ * first run, a stripped deployment, a blocked request — the sample builds from the generated
+ * scene instead of failing, which is the property the original design was protecting.
+ *
+ * Either way it goes in through `registerOne`, the same import path a person's own file
+ * takes: validated, stored durably, read back, and probed. The sample exercises the real code
+ * rather than a shortcut around it.
  */
 
 export interface SampleProjectDeps {
@@ -43,6 +46,28 @@ const DOCUMENT_HEIGHT_PX = 1000;
 /** Named so the hub can offer to open the existing one instead of making a second. */
 export const SAMPLE_PROJECT_NAME = "Estro sample";
 
+/** The place in the photograph, used for the layer, the title over it, and the file name. */
+const SAMPLE_IMAGE_NAME = "Sindhudurg";
+
+/**
+ * Fetches the sample photograph, or gives up quietly.
+ *
+ * Same-origin and only on request — nothing is fetched until somebody asks for the sample —
+ * and a failure returns null rather than throwing, so the caller can fall back to the drawn
+ * scene instead of leaving a person with no sample at all.
+ */
+async function loadSamplePhotograph(): Promise<File | null> {
+  try {
+    const response = await fetch(`${import.meta.env.BASE_URL}sample/sindhudurg.jpg`);
+    if (!response.ok) return null;
+    const blob = await response.blob();
+    if (blob.size === 0) return null;
+    return new File([blob], "sindhudurg.jpg", { type: "image/jpeg" });
+  } catch {
+    return null;
+  }
+}
+
 export async function buildSampleProject(deps: SampleProjectDeps): Promise<SampleProjectResult> {
   try {
     if (typeof document === "undefined") {
@@ -51,13 +76,9 @@ export async function buildSampleProject(deps: SampleProjectDeps): Promise<Sampl
     const warnings: string[] = [];
     const project = await deps.projects.createProject({ name: await uniqueName(deps.projects), kind: "photo" });
 
-    // Three frames of one scene at different times of day. Different enough that a colour
-    // adjustment is visibly doing something, and related enough to read as one sequence.
-    const files = await Promise.all([
-      renderScene("estro-sample-morning.png", 0),
-      renderScene("estro-sample-noon.png", 1),
-      renderScene("estro-sample-dusk.png", 2),
-    ]);
+    const photograph = await loadSamplePhotograph();
+    if (!photograph) warnings.push("The sample photograph could not be loaded, so a drawn scene was used instead.");
+    const files = [photograph ?? await renderScene("estro-sample-scene.png", 1)];
 
     const assetIds: string[] = [];
     for (const file of files) {
@@ -80,11 +101,11 @@ export async function buildSampleProject(deps: SampleProjectDeps): Promise<Sampl
     const documentId = created.headRevision.state.photoDocument?.id ?? null;
 
     await deps.layers.applyOperation(project.id, {
-      operation: "add_image", assetId: assetIds[0], fit: "fill", name: "Valley, morning",
+      operation: "add_image", assetId: assetIds[0], fit: "fill", name: SAMPLE_IMAGE_NAME,
     });
     await deps.layers.applyOperation(project.id, {
       operation: "add_text",
-      content: "Estro",
+      content: SAMPLE_IMAGE_NAME,
       name: "Title",
       // Left to the service, which centres it and picks ink that reads on this background.
     });
@@ -97,7 +118,7 @@ export async function buildSampleProject(deps: SampleProjectDeps): Promise<Sampl
       documentId,
       assetIds,
       warnings,
-      summary: `Built “${project.name}”: ${assetIds.length} photographs, an image document with one of them placed, and a title layer over it. Everything in it is an ordinary edit you can change or undo.`,
+      summary: `Built “${project.name}”: a photograph of ${SAMPLE_IMAGE_NAME}, placed in an image document with a title over it. Everything in it is an ordinary edit you can change or undo.`,
     };
   } catch (error) { throw toProjectError(error); }
 }
