@@ -10,9 +10,49 @@ There is no chat box bolted onto this app, deliberately. A second conversation i
 
 Open it, press **Load the sample project**, and there is a photograph on a canvas with layers, adjustments and a history. Nothing is uploaded; the sample is drawn in your browser and imported through the same path your own files take.
 
+## Why WebMCP
+
+Editing a photograph was never the hard part. Asking for it was.
+
+There were three other ways to close that gap, and each one loses something:
+
+- **A chat box inside the editor.** A second, worse copy of the conversation you are already having, with none of its context. You would have to explain your holiday to it twice.
+- **An "Enhance" button.** It does something to your photograph and teaches you nothing. You cannot ask it why, and you cannot ask it for something slightly different.
+- **A server the agent calls.** Now your photographs leave your machine, you need an account, and your Undo lives somewhere you cannot see.
+
+WebMCP is the only one of the four where the agent reaches into the editor you are already looking at, on a photograph that never leaves the tab, and where the result of its work lands as an ordinary edit in your own History — one you can read, question, and take back.
+
+**There is no agent mode.** The interface and the tools call the same validated commands, the same history and the same transaction path. Dragging the Temperature slider and calling `apply_color_adjustment` produce the same history entry, because they are the same command. That is the whole design: there is nothing an agent can do here that you cannot see, and nothing you can do that it cannot read.
+
+### What you and an agent can do together
+
+| You say | What happens | Tool |
+| --- | --- | --- |
+| "Make it feel like golden hour" | Temperature, contrast and saturation move on the real controls. Each arrives as its own card naming the control, the value, and what that word means. | `apply_color_adjustment` |
+| "What does temperature even do?" | A plain sentence, the current value, its range, and where the control lives. Nothing changes. | `explain_edit` |
+| "Show me where the contrast slider is" | The Inspector reveals and focuses the real control, then waits. Teaching never performs the edit. | `focus_ui`, `guided_step` |
+| "Did that cost me any detail?" | The histogram measures the live composite and names the channel that is clipped, by how much, and whether it can be recovered. | `inspect_histogram` |
+| "Show me the before and after" | The canvas goes to split view against a real earlier revision — the original import, or one you pick. | `compare_revisions` |
+| "Match my other three photos to this one" | Every target is checked before anything is written, so a strict batch refuses rather than half-syncing a set. Each project keeps its own Undo. | `match_photos` |
+| "Undo just the saturation" | That one transaction reverts. Your crop stays. | `undo_transaction` |
+| "A bit warmer" | Resolved against a fixed vocabulary of 81 phrases and handed back as a command, with the reading shown, *before* it runs. | `resolve_phrase` |
+
+### What you keep
+
+The agent gets to move the controls. You keep everything that matters:
+
+- **Every step is individually yours to undo.** Not the session, not the last thing — that step, by name, while the rest of your work stands.
+- **Nothing happens invisibly.** Every tool call surfaces a card, and History marks which edits were yours and which were the agent's.
+- **It cannot overwrite a decision you just made.** Every mutation takes an optional `expectedRevisionId` and is refused with `HISTORY_CONFLICT` if the project moved on, checked immediately before the commit.
+- **It cannot quietly exceed a control.** Out-of-range values are clamped and the clamp is reported back.
+- **It cannot invent a control Estro does not have.** There is no tool to hide behind, so it has to say so and name what it used instead.
+- **Your photographs never leave the tab.** No server, no account, no upload.
+
+The division of labour ends up being the useful part: the agent knows the vocabulary, you know what you wanted the picture to look like. Neither of those is the other's job.
+
 ## For an agent
 
-Estro registers **56 tools** on `document.modelContext` at module load, before first paint. Start with `list_projects` — nearly every other tool takes a `projectId`, and that is the only way to discover one. If the browser holds no projects, call `manage_project` with `operation: "create_sample"`: a browser cannot open a file without a user gesture, so that call draws three photographs, imports them, and builds a project with a document and a title layer in one step.
+Estro registers **56 tools** on `document.modelContext` at module load, before first paint. Start with `list_projects` — nearly every other tool takes a `projectId`, and that is the only way to discover one. If the browser holds no projects, call `manage_project` with `operation: "create_sample"`: a browser cannot open a file without a user gesture, so that call imports one of four bundled photographs and builds a project with a document and a title layer in one step. Pass `sample` to choose: each was picked for a different difficulty, so `city` is the one to reach for when somebody wants to learn white balance and `quarry` when they want contrast. If the photograph cannot be fetched, a drawn scene stands in rather than the call failing.
 
 Every result is a JSON envelope carrying `ok`, `schemaVersion`, the previous and resulting revision IDs, a `transactionId`, an `undoToken`, `affectedIds`, warnings, and a plain-language `summary`. Colour and layer commands also return an `explanation`: what the term means in ordinary words, so an agent can pass it straight back to someone who did not know it. Every mutation accepts an optional `expectedRevisionId` and is refused with `HISTORY_CONFLICT` if the project has moved on — checked immediately before the commit, not before the call. Errors carry a `code`, a `fieldPath`, a `recoverySuggestion`, and `projectPreserved`.
 
