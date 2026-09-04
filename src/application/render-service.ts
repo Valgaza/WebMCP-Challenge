@@ -182,8 +182,15 @@ export class RenderService {
    * Resolves which revision a comparison should show.
    *
    * Hiding every layer and calling the result "before" showed the empty background, which is
-   * not a state the document was ever in. The baseline is a real revision: the import that
-   * created the document, the revision before this one, or one the user picked.
+   * not a state the document was ever in. The baseline is a real revision: the picture as it
+   * was imported, the revision before this one, or one the user picked.
+   *
+   * That fix went halfway. It stopped inventing an empty background and started picking the
+   * first revision that had a *document* — which, for every project that has ever existed, is
+   * the empty canvas created before anything was imported into it. So "before" still showed a
+   * flat background, only now it was a real revision showing one, which is harder to notice
+   * and impossible to argue with. "Original import" now means the earliest revision that
+   * actually contains a picture.
    */
   async comparisonState(
     projectId: string,
@@ -211,8 +218,11 @@ export class RenderService {
       baselineRevisionId = index > 0 ? revisions[index - 1].id : null;
       if (!baselineRevisionId) reason = "This is the first revision, so there is nothing earlier to compare with.";
     } else {
-      baselineRevisionId = withDocument[0]?.id ?? null;
+      const withPicture = withDocument.find((entry) =>
+        flattenLayers(entry.state.photoDocument?.layers ?? []).some(({ layer }) => layer.kind === "image"));
+      baselineRevisionId = (withPicture ?? withDocument[0])?.id ?? null;
       if (!baselineRevisionId) reason = "No earlier revision contains an image document.";
+      else if (!withPicture) reason = "Nothing has been imported into this document yet, so the baseline is the empty canvas.";
     }
 
     return {
