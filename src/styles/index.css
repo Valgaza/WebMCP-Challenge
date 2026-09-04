@@ -527,6 +527,17 @@ kbd {
 .context-action-bar { position: absolute; z-index: 8; inset-block-start: 8px; inset-inline-start: 50%; inline-size: max-content; max-inline-size: calc(100% - 16px); min-height: 40px; padding: 4px; flex-wrap: wrap; justify-content: center; row-gap: 4px; border: 1px solid var(--border-subtle); border-radius: var(--radius-lg); background: color-mix(in oklch, var(--surface-1) 94%, transparent); box-shadow: 0 8px 22px oklch(0 0 0 / 0.24); transform: translateX(-50%); backdrop-filter: blur(12px); }
 /* A control keeps its own width and moves to the next row instead of being squeezed. */
 .context-action-bar > * { flex: 0 0 auto; }
+
+/*
+ * Six toggles in an undifferentiated run, two of which do something categorically different
+ * from the other four. A gap and a hairline say which are which.
+ */
+.context-action-bar__group { display: flex; align-items: center; gap: 2px; }
+.context-action-bar__group + .context-action-bar__group {
+  margin-inline-start: 6px;
+  padding-inline-start: 8px;
+  border-inline-start: 1px solid var(--border-subtle);
+}
 .zoom-output { min-width: 54px; padding-inline: 8px; color: var(--text-secondary); font-family: ui-monospace, monospace; font-size: var(--text-xs); line-height: 32px; text-align: center; }
 
 .canvas-stage { position: absolute; inset: 0; overflow: hidden; outline-offset: -3px; touch-action: none; user-select: none; }
@@ -3428,7 +3439,13 @@ dialog {
 .editor-inspector .color-field input { inline-size: 40px; block-size: var(--control-h-sm); }
 
 .editor-inspector .inspector-section__body { gap: 10px; }
-.editor-inspector .inspector-section__body h3 { margin-block: 2px; }
+/* A sub-heading and its explanation mark sit on one line. */
+.editor-inspector .inspector-section__body h3 {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-block: 2px;
+}
 
 .field-help-host {
   position: relative;

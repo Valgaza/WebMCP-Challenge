@@ -1,5 +1,5 @@
 import {
-  ArrowLeft, ArrowLeftRight, BookmarkPlus, Check, ChevronDown, CloudOff, Command, Crop, Focus, Grid2X2, Grid3X3, Hand, ImagePlus,
+  ArrowLeft, ArrowLeftRight, BookmarkPlus, FlipHorizontal2, Frame, Scan, Check, ChevronDown, CloudOff, Command, Crop, Focus, Grid2X2, Grid3X3, Hand, ImagePlus,
   History, Layers3, Maximize2, Minimize2, MousePointer2, PanelLeft, PanelRight, Pencil,
   Redo2, Ruler, Save, Shield, SplitSquareHorizontal, Undo2, ZoomIn,
 } from "lucide-react";
@@ -1142,30 +1142,62 @@ export function ProjectWorkspace({ service = projectService, workspaceApi = defa
             </select>
           </label>
 
-          <button
-            className="button button--ghost" type="button"
-            data-semantic-id="comparison-toggle"
-            data-agent-target={agentTarget === "comparison-toggle" ? "true" : undefined}
-            disabled={!documentLayers.length}
-            aria-pressed={currentWorkspace.comparison.mode !== "off"}
-            aria-keyshortcuts="\\"
-            onClick={() => void setComparisonMode(currentWorkspace.comparison.mode === "off" ? "toggle" : "off")}
-          >
-            {currentWorkspace.comparison.mode === "off" ? "Before" : "After"}
-          </button>
-          <button
-            className="icon-button" type="button" aria-label="Compare with a split view"
-            disabled={!documentLayers.length}
-            aria-pressed={currentWorkspace.comparison.mode === "split"}
-            onClick={() => void setComparisonMode(currentWorkspace.comparison.mode === "split" ? "off" : "split")}
-          >
-            <SplitSquareHorizontal aria-hidden="true" size={16} />
-          </button>
+          <span className="context-action-bar__group">
+            <Tooltip label="Show the picture before your edits" shortcut="\\">
+              <button
+                className="button button--ghost" type="button"
+                data-semantic-id="comparison-toggle"
+                data-agent-target={agentTarget === "comparison-toggle" ? "true" : undefined}
+                disabled={!documentLayers.length}
+                aria-pressed={currentWorkspace.comparison.mode !== "off"}
+                aria-keyshortcuts="\\"
+                onClick={() => void setComparisonMode(currentWorkspace.comparison.mode === "off" ? "toggle" : "off")}
+              >
+                {currentWorkspace.comparison.mode === "off" ? "Before" : "After"}
+              </button>
+            </Tooltip>
+            <IconButton
+              label="Compare before and after side by side"
+              icon={SplitSquareHorizontal}
+              disabled={!documentLayers.length}
+              pressed={currentWorkspace.comparison.mode === "split"}
+              onClick={() => void setComparisonMode(currentWorkspace.comparison.mode === "split" ? "off" : "split")}
+            />
+          </span>
 
-          <button className="icon-button" data-semantic-id="toggle-grid" data-agent-target={agentTarget === "toggle-grid" ? "true" : undefined} type="button" aria-label="Toggle grid" aria-pressed={currentWorkspace.overlays.grid} onClick={() => runCommand("overlay.grid")}><Grid3X3 aria-hidden="true" size={16} /></button>
-          <button className="icon-button" type="button" aria-label="Toggle guides" aria-pressed={currentWorkspace.overlays.guides} onClick={() => runCommand("overlay.guides")}><Ruler aria-hidden="true" size={16} /></button>
-          <button className="icon-button" type="button" aria-label="Toggle safe areas" aria-pressed={currentWorkspace.overlays.safeAreas} onClick={() => runCommand("overlay.safe-areas")}><Shield aria-hidden="true" size={16} /></button>
-          <button className="icon-button" type="button" aria-label="Toggle pixel grid" aria-pressed={currentWorkspace.overlays.pixelGrid} title="Pixel grid appears above 100% zoom" onClick={() => void applyWorkspaceChange({ type: "overlay", overlay: "pixelGrid", enabled: !currentWorkspace.overlays.pixelGrid }, `Pixel grid ${currentWorkspace.overlays.pixelGrid ? "off" : "on"}. It is visible above 100% zoom.`)}><Grid2X2 aria-hidden="true" size={16} /></button>
+          {/*
+            * Four overlays, named for what they draw.
+            *
+            * A shield meant "safe areas", which everywhere else in software means security. A
+            * ruler meant "guides", while rulers are a different overlay that has no button
+            * here at all — so the glyph pointed at the wrong feature. And the grid and the
+            * pixel grid were `Grid3X3` and `Grid2X2`, the same drawing at two densities, four
+            * pixels apart, both toggles. None of the four had a tooltip.
+            */}
+          <span className="context-action-bar__group">
+            <IconButton
+              label="Grid" icon={Grid3X3} shortcut="G"
+              semanticId="toggle-grid" agentTarget={agentTarget}
+              pressed={currentWorkspace.overlays.grid}
+              onClick={() => runCommand("overlay.grid")}
+            />
+            <IconButton
+              label="Guides" icon={FlipHorizontal2} shortcut=";"
+              pressed={currentWorkspace.overlays.guides}
+              onClick={() => runCommand("overlay.guides")}
+            />
+            <IconButton
+              label="Safe areas" icon={Frame}
+              pressed={currentWorkspace.overlays.safeAreas}
+              onClick={() => runCommand("overlay.safe-areas")}
+            />
+            <IconButton
+              label="Pixel grid" icon={Scan}
+              unavailableReason={currentWorkspace.viewport.zoom <= 1 ? "Pixel grid draws above 100% zoom" : undefined}
+              pressed={currentWorkspace.overlays.pixelGrid}
+              onClick={() => void applyWorkspaceChange({ type: "overlay", overlay: "pixelGrid", enabled: !currentWorkspace.overlays.pixelGrid }, `Pixel grid ${currentWorkspace.overlays.pixelGrid ? "off" : "on"}. It is visible above 100% zoom.`)}
+            />
+          </span>
 
         </div>
 
@@ -1280,7 +1312,7 @@ export function ProjectWorkspace({ service = projectService, workspaceApi = defa
           <div className="inspector-groups">
             {documentState && projectId ? (
               <>
-              <InspectorSection id="geometry" title="Position and size" open={isSectionOpen("geometry")} onToggle={(next) => toggleSection("geometry", next)}>
+              <InspectorSection id="geometry" title="Transform" open={isSectionOpen("geometry")} onToggle={(next) => toggleSection("geometry", next)}>
                 <GeometryPanel
                   part="transform"
                   documentWidthPx={documentState.widthPx}

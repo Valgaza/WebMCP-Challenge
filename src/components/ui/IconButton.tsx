@@ -1,5 +1,6 @@
 import type { ButtonHTMLAttributes } from "react";
 import type { LucideIcon } from "lucide-react";
+import type { SemanticTargetId } from "../../editor/semantic-targets";
 import { Tooltip } from "./Tooltip";
 
 interface IconButtonProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement>, "aria-label" | "title"> {
@@ -13,6 +14,14 @@ interface IconButtonProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement>, 
   /** Why the control is unavailable. Replaces `label` in the tooltip while it is off. */
   unavailableReason?: string;
   tooltip?: boolean;
+  /**
+   * The agent-facing name of this control, and which one the agent is currently pointing at.
+   *
+   * Typed against the registry rather than left as a string, so a mistyped id is a compile
+   * error instead of a target that silently resolves to nothing forever.
+   */
+  semanticId?: SemanticTargetId;
+  agentTarget?: string | null;
 }
 
 const ICON_SIZE = { sm: 14, md: 16 } as const;
@@ -32,7 +41,8 @@ const ICON_SIZE = { sm: 14, md: 16 } as const;
  * thing they were looking for.
  */
 export function IconButton({
-  label, icon: Icon, shortcut, size = "md", pressed, unavailableReason, tooltip = true, ...rest
+  label, icon: Icon, shortcut, size = "md", pressed, unavailableReason, tooltip = true,
+  semanticId, agentTarget, ...rest
 }: IconButtonProps) {
   const unavailable = Boolean(unavailableReason);
 
@@ -45,6 +55,8 @@ export function IconButton({
       aria-keyshortcuts={shortcut ? toKeyshortcuts(shortcut) : rest["aria-keyshortcuts"]}
       aria-pressed={pressed}
       aria-disabled={unavailable || undefined}
+      data-semantic-id={semanticId}
+      data-agent-target={semanticId && agentTarget === semanticId ? "true" : undefined}
       onClick={unavailable ? undefined : rest.onClick}
     >
       <Icon aria-hidden="true" size={ICON_SIZE[size]} />

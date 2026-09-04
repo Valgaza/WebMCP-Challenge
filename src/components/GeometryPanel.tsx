@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
 import {
   AlignCenterHorizontal, AlignCenterVertical, AlignEndHorizontal, AlignEndVertical,
-  AlignStartHorizontal, AlignStartVertical, Crop, FlipHorizontal, FlipVertical, RotateCcw,
+  AlignStartHorizontal, AlignStartVertical, Crop as CropIcon, FlipHorizontal, FlipVertical, RotateCcw,
   RotateCw, Scaling,
 } from "lucide-react";
+import { FieldHelp } from "./ui/FieldHelp";
+import { SectionEmpty } from "./ui/SectionEmpty";
 import {
   ASPECT_PRESETS, CANVAS_ANCHORS, type AlignEdge, type AlignReference, type CanvasAnchor,
   type ImageLayer,
@@ -198,16 +200,38 @@ export function GeometryPanel({
   }
 
   if (part === "crop") {
-    if (!selectedLayer || !crop) return null;
-    return (
+    /*
+     * An unmet condition is still an answer.
+     *
+     * This returned `null`, and the disclosure around it does not know that — so the group
+     * opened onto a body with no children: a chevron that turned, ten pixels of nothing, then
+     * the next divider. A screen reader announced an expanded region containing nothing. The
+     * condition is broader than "nothing selected": it is also every multi-selection and every
+     * text, shape or group layer.
+     */
+    if (!selectedLayer || !crop) {
+      return (
         <section data-semantic-id="inspector-crop" tabIndex={-1} data-agent-target={agentTarget === "inspector-crop" ? "true" : undefined}>
           <h3>Crop</h3>
-          <p className="field-help">
-            Crop is stored as a proportion of the source, so it survives a replacement at different pixel dimensions.
-            {sourceWidthPx && sourceHeightPx
-              ? ` Kept area: ${Math.round((crop.right - crop.left) * sourceWidthPx)} × ${Math.round((crop.bottom - crop.top) * sourceHeightPx)} px.`
-              : ""}
-          </p>
+          <SectionEmpty icon={CropIcon} title="No picture is selected.">
+            Select a single image layer in the Layers panel, then crop it here or with the crop tool.
+          </SectionEmpty>
+        </section>
+      );
+    }
+    return (
+        <section data-semantic-id="inspector-crop" tabIndex={-1} data-agent-target={agentTarget === "inspector-crop" ? "true" : undefined}>
+          <h3>
+            Crop
+            <FieldHelp subject="Crop">
+              Crop is stored as a proportion of the source, so it survives a replacement at different pixel dimensions.
+            </FieldHelp>
+          </h3>
+          {sourceWidthPx && sourceHeightPx ? (
+            <p className="field-help">
+              Kept area: {Math.round((crop.right - crop.left) * sourceWidthPx)} × {Math.round((crop.bottom - crop.top) * sourceHeightPx)} px.
+            </p>
+          ) : null}
           <div className="size-fields">
             {(["left", "top", "right", "bottom"] as const).map((edge) => (
               <label key={edge}>
@@ -239,7 +263,7 @@ export function GeometryPanel({
             ))}
           </div>
           <button className="button button--ghost" type="button" disabled={disabled} onClick={() => onCropRatio(null)}>
-            <Crop aria-hidden="true" size={15} /> Clear crop
+            <CropIcon aria-hidden="true" size={15} /> Clear crop
           </button>
         </section>
     );
