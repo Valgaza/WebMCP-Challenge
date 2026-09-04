@@ -524,7 +524,15 @@ kbd {
  * and wrapping keeps every control visible rather than clipped away or hidden behind a
  * scroll nobody would think to look for.
  */
-.context-action-bar { position: absolute; z-index: 8; inset-block-start: 8px; inset-inline-start: 50%; inline-size: max-content; max-inline-size: calc(100% - 16px); min-height: 40px; padding: 4px; flex-wrap: wrap; justify-content: center; row-gap: 4px; border: 1px solid var(--border-subtle); border-radius: var(--radius-lg); background: color-mix(in oklch, var(--surface-1) 94%, transparent); box-shadow: 0 8px 22px oklch(0 0 0 / 0.24); transform: translateX(-50%); backdrop-filter: blur(12px); }
+/*
+ * Out of the picture.
+ *
+ * These are view settings — zoom, preview quality, which overlays are on — and they sat
+ * centred across the top of the canvas, over the part of a photograph most likely to hold its
+ * subject. Figma keeps this kind of bar floating clear of the work; here it goes bottom-left,
+ * because bottom-centre already belongs to the contextual actions a crop puts there.
+ */
+.context-action-bar { position: absolute; z-index: 8; inset-block-end: 12px; inset-inline-start: 12px; inline-size: max-content; max-inline-size: calc(100% - 24px); min-height: 36px; padding: 4px; flex-wrap: wrap; justify-content: flex-start; row-gap: 4px; border: 1px solid var(--border-subtle); border-radius: var(--radius-lg); background: color-mix(in oklch, var(--surface-1) 92%, transparent); box-shadow: 0 8px 22px oklch(0 0 0 / 0.3); backdrop-filter: blur(12px); }
 /* A control keeps its own width and moves to the next row instead of being squeezed. */
 .context-action-bar > * { flex: 0 0 auto; }
 
