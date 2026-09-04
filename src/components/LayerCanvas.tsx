@@ -81,11 +81,13 @@ export function LayerCanvas({
 
   useEffect(() => {
     let cancelled = false;
+    /* The render is abandoned by the effect that started it, and by nothing else. */
+    const controller = new AbortController();
     setStatus("rendering");
 
     void (async () => {
       try {
-        const result = await renderService.render({ projectId, soloLayerIds: soloRef.current, isolateGroupId, scale });
+        const result = await renderService.render({ projectId, soloLayerIds: soloRef.current, isolateGroupId, scale, signal: controller.signal });
         if (cancelled) return;
         const host = hostRef.current;
         if (!host) return;
@@ -98,7 +100,8 @@ export function LayerCanvas({
 
         if (comparing) {
           const baseline = await renderService.render({
-            projectId, soloLayerIds: soloRef.current, isolateGroupId, scale, revisionId: comparison!.baselineRevisionId,
+            projectId, soloLayerIds: soloRef.current, isolateGroupId, scale,
+            revisionId: comparison!.baselineRevisionId, signal: controller.signal,
           });
           if (cancelled) return;
           const target = baselineRef.current;
@@ -117,11 +120,12 @@ export function LayerCanvas({
         setStatus("idle");
         warningsRef.current?.(result.warnings);
       } catch {
-        if (!cancelled) setStatus("failed");
+        /* A cancelled render is not a failed one; the picture already on screen is still true. */
+        if (!cancelled && !controller.signal.aborted) setStatus("failed");
       }
     })();
 
-    return () => { cancelled = true; };
+    return () => { cancelled = true; controller.abort(); };
     // revisionKey already encodes the viewing modes, so they are not separate dependencies.
   }, [projectId, renderService, revisionKey, soloKey, isolateGroupId, comparing, comparison?.baselineRevisionId, scale]);
 

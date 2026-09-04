@@ -12,7 +12,13 @@ import css from "./index.css?raw";
  */
 
 function declaredTokens(): Set<string> {
-  return new Set([...css.matchAll(/^\s*(--[a-zA-Z0-9-]+)\s*:/gm)].map((match) => match[1]));
+  /*
+   * A declaration can start after a brace or a semicolon, not only at the start of a line.
+   *
+   * Requiring line-start made this report two tokens as undefined that were declared inline on
+   * one rule — a false alarm that would have sent someone hunting a typo that was not there.
+   */
+  return new Set([...css.matchAll(/(?:^|[{;])\s*(--[a-zA-Z0-9-]+)\s*:/gm)].map((match) => match[1]));
 }
 
 function referencedTokens(): Set<string> {

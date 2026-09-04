@@ -58,7 +58,6 @@ export class RenderService {
   private readonly bitmaps = new Map<string, { hash: string; bitmap: ImageBitmap; widthPx: number; heightPx: number }>();
   private readonly worker: MediaWorkerClient;
   private maskProvider: StoredMaskProvider | null = null;
-  private generation = 0;
 
   constructor(
     private readonly projects: ProjectService,
@@ -68,8 +67,24 @@ export class RenderService {
     this.worker = options.worker ?? createUnavailableWorkerClient();
   }
 
+  /**
+   * Draws the document, or abandons the attempt — never both.
+   *
+   * There used to be a `generation` counter here, bumped by every call, and the loop that
+   * collects image sources broke out of itself as soon as any *other* render started. It then
+   * composited whatever it had, which was usually nothing, and returned that as a finished
+   * picture with "could not be drawn" warnings attached.
+   *
+   * One counter shared by every caller is what made this reachable: `histogram()` renders
+   * through here too, so opening the Inspector's histogram aborted the canvas mid-collection
+   * and the canvas drew empty. It survived unnoticed only because the canvas used to
+   * re-composite on almost any interaction, so a correct render came along shortly afterwards
+   * and painted over the blank one.
+   *
+   * Cancellation belongs to the caller that owns the work, so it comes from `request.signal`
+   * now, and a cancelled render throws instead of returning a picture nobody asked for.
+   */
   async render(request: RenderRequest): Promise<RenderOutcome> {
-    const mine = (this.generation += 1);
     try {
       const history = await this.projects.getProjectHistory(request.projectId);
       // A comparison baseline renders a specific revision rather than the current one; the
@@ -98,7 +113,7 @@ export class RenderService {
       const missing: string[] = [];
       const missingReasons: string[] = [];
       for (const assetId of needed) {
-        if (request.signal?.aborted || mine !== this.generation) break;
+        if (request.signal?.aborted) throw new ProjectError("RENDER_CANCELLED", "This render was cancelled.");
         // A resampled derivative means the algorithm the user chose has already been applied
         // to these pixels; drawing from it is what makes that choice visible.
         const derivative = await this.assets.getAsset(assetId)
@@ -145,8 +160,16 @@ export class RenderService {
       );
 
       if (missing.length) {
+        /*
+         * The reason goes first.
+         *
+         * Compositing contributes its own per-layer line — "X could not be drawn because its
+         * image is unavailable" — which names the layer and explains nothing. That line sorted
+         * ahead of this one, so the banner told a person their picture was unavailable while
+         * the sentence saying *why* sat unread behind it.
+         */
         const [firstReason] = missingReasons;
-        result.warnings.push(firstReason
+        result.warnings.unshift(firstReason
           ? `${count(missing.length, "image")} could not be drawn. ${firstReason}`
           : `${count(missing.length, "image")} could not be read. Relink to see the full result.`);
       }

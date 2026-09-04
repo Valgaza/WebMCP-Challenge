@@ -23,6 +23,13 @@ export type ProjectErrorCode =
   | "CAPABILITY_UNAVAILABLE"
   | "MEDIA_DECODE_FAILED"
   /**
+   * The caller stopped wanting this render before it finished.
+   *
+   * Not a fault, and never shown: it exists so an abandoned render throws instead of returning
+   * a half-collected picture as though it were finished.
+   */
+  | "RENDER_CANCELLED"
+  /**
    * A fault with no known cause. Kept separate from the storage codes so a programming
    * error does not reach the person as a disk problem, and so an agent is not told to
    * free browser storage over a bug it cannot do anything about.

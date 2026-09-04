@@ -512,7 +512,18 @@ kbd {
 
 .panel-resize-handle::after { content: ""; position: absolute; inset-block: 0; inset-inline: 4px; width: 2px; background: transparent; }
 .panel-resize-handle:hover::after, .panel-resize-handle:focus-visible::after { background: var(--accent); }
-.editor-center { grid-column: 3; grid-row: 2; position: relative; min-width: 0; min-height: 0; overflow: hidden; background: var(--canvas-backdrop); }
+.editor-center {
+  /* How far the floating view bar sits off the canvas edge, and how much room it needs above it. */
+  --canvas-bar-inset: 16px;
+  --canvas-bar-clearance: 56px;
+  grid-column: 3;
+  grid-row: 2;
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--canvas-backdrop);
+}
 /*
  * Centred on the canvas column, and never wider than it.
  *
@@ -525,14 +536,18 @@ kbd {
  * scroll nobody would think to look for.
  */
 /*
- * Out of the picture.
+ * Out of the picture, and centred under it.
  *
- * These are view settings — zoom, preview quality, which overlays are on — and they sat
- * centred across the top of the canvas, over the part of a photograph most likely to hold its
- * subject. Figma keeps this kind of bar floating clear of the work; here it goes bottom-left,
- * because bottom-centre already belongs to the contextual actions a crop puts there.
+ * These are view settings — zoom, preview quality, which overlays are on — and they used to
+ * sit centred across the *top* of the canvas, over the part of a photograph most likely to
+ * hold its subject. Moving them to the bottom-left fixed the covering and introduced two new
+ * problems: the bar hung off to one side of a canvas it belongs to, and it sat close enough to
+ * the bottom edge that a tooltip opening downwards left the window.
+ *
+ * So: centred on the canvas column, lifted clear of the edge, and its tooltips open upwards.
+ * Anything a crop puts on screen stacks above it rather than underneath.
  */
-.context-action-bar { position: absolute; z-index: 8; inset-block-end: 12px; inset-inline-start: 12px; inline-size: max-content; max-inline-size: calc(100% - 24px); min-height: 36px; padding: 4px; flex-wrap: wrap; justify-content: flex-start; row-gap: 4px; border: 1px solid var(--border-subtle); border-radius: var(--radius-lg); background: color-mix(in oklch, var(--surface-1) 92%, transparent); box-shadow: 0 8px 22px oklch(0 0 0 / 0.3); backdrop-filter: blur(12px); }
+.context-action-bar { position: absolute; z-index: 8; inset-block-end: var(--canvas-bar-inset); inset-inline-start: 50%; translate: -50% 0; inline-size: max-content; max-inline-size: calc(100% - 24px); min-height: 36px; padding: 4px; flex-wrap: wrap; justify-content: center; row-gap: 4px; border: 1px solid var(--border-subtle); border-radius: var(--radius-lg); background: color-mix(in oklch, var(--surface-1) 92%, transparent); box-shadow: 0 8px 22px oklch(0 0 0 / 0.3); backdrop-filter: blur(12px); }
 /* A control keeps its own width and moves to the next row instead of being squeezed. */
 .context-action-bar > * { flex: 0 0 auto; }
 
@@ -540,6 +555,15 @@ kbd {
  * Six toggles in an undifferentiated run, two of which do something categorically different
  * from the other four. A gap and a hairline say which are which.
  */
+/*
+ * A bar this close to the bottom of the window has no room to open a label downwards: there
+ * were twelve pixels under it and a tooltip needs about thirty, so every label in it was cut
+ * off by the edge of the screen. They open upwards here.
+ */
+.context-action-bar .tooltip {
+  inset-block: auto calc(100% + 6px);
+}
+
 .context-action-bar__group { display: flex; align-items: center; gap: 2px; }
 .context-action-bar__group + .context-action-bar__group {
   margin-inline-start: 6px;
@@ -3657,7 +3681,8 @@ dialog {
 .crop-overlay__handle--n, .crop-overlay__handle--s { cursor: ns-resize; }
 .crop-overlay__handle--e, .crop-overlay__handle--w { cursor: ew-resize; }
 .crop-overlay__handle--ne, .crop-overlay__handle--sw { cursor: nesw-resize; }
-.crop-overlay__actions { position: absolute; inset-block-end: 12px; inset-inline-start: 50%; transform: translateX(-50%); display: flex; gap: 6px; }
+/* Stacked above the view bar, which owns the bottom of the canvas. */
+.crop-overlay__actions { position: absolute; inset-block-end: calc(var(--canvas-bar-inset) + var(--canvas-bar-clearance)); inset-inline-start: 50%; transform: translateX(-50%); display: flex; gap: 6px; }
 
 /* ------------------------------ canvas comparison ---------------------------- */
 
