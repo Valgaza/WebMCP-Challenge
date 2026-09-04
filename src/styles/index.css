@@ -2913,11 +2913,25 @@ dialog {
 .media-tile__meta small { color: var(--text-tertiary); font-size: var(--text-2xs); }
 .media-tile__state { color: var(--warning) !important; }
 
+/*
+ * The actions for the selected file follow it down the panel.
+ *
+ * This block sits after the whole media list, so selecting a file put "Add to canvas" below
+ * however many files you had — off the bottom of a scrolling panel. The one thing a person
+ * wants after importing a picture was the one thing they had to go looking for. It sticks to
+ * the bottom of the panel now, which is where a selection's actions belong.
+ */
 .media-details {
+  position: sticky;
+  inset-block-end: 0;
+  z-index: 1;
+  margin-block-start: auto;
   padding: 12px;
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-lg);
-  background: var(--surface-2);
+  background: color-mix(in oklch, var(--surface-2) 97%, transparent);
+  box-shadow: 0 -8px 20px oklch(0 0 0 / 0.28);
+  backdrop-filter: blur(12px);
 }
 
 .media-details h3 { margin: 0 0 10px; font-size: var(--text-sm); font-weight: var(--weight-strong); overflow-wrap: anywhere; }
@@ -3460,6 +3474,40 @@ dialog {
 
 .field-help-host:hover .field-help-bubble,
 .field-help-host:has(:focus-visible) .field-help-bubble { opacity: 1; }
+
+/*
+ * An unmet condition, said out loud.
+ *
+ * Sections whose guard was `return null` opened onto nothing at all. Naming the situation
+ * costs three lines and turns a control that looks broken into one that is merely waiting.
+ */
+.section-empty {
+  display: grid;
+  justify-items: start;
+  gap: 6px;
+  padding: 14px 12px;
+  border: 1px dashed color-mix(in oklch, var(--border-subtle) 80%, transparent);
+  border-radius: var(--radius-lg);
+  background: color-mix(in oklch, var(--surface-2) 55%, transparent);
+}
+
+.section-empty svg { color: var(--text-tertiary); }
+
+.section-empty__title {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
+}
+
+.section-empty__body {
+  margin: 0;
+  color: var(--text-tertiary);
+  font-size: var(--text-2xs);
+  line-height: 1.45;
+}
+
+.section-empty .button { margin-block-start: 2px; }
 
 /* -------------------------------- inspector ---------------------------------- */
 
